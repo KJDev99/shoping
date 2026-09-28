@@ -71,75 +71,100 @@ export function listParamsToQuery(params: ListParams): Record<string, QueryValue
 
 interface RequestOptions {
   params?: Record<string, QueryValue>;
+  /** JSON body, or FormData for file uploads. */
   body?: unknown;
   signal?: AbortSignal;
 }
 
-let redirectingToLogin = false;
-
-async function request<T>(method: string, path: string, opts: RequestOptions = {}): Promise<T> {
-  const headers: Record<string, string> = { Accept: "application/json" };
-  if (opts.body !== undefined) headers["Content-Type"] = "application/json";
-  if (method !== "GET") {
-    const csrf = readCookie(CSRF_COOKIE);
-    if (csrf) headers[CSRF_HEADER] = csrf;
-  }
-
-  let res: Response;
-  try {
-    res = await fetch(`${API_BASE_URL}${path}${toQueryString(opts.params)}`, {
-      method,
-      headers,
-      body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
-      credentials: "include",
-      signal: opts.signal,
-      cache: "no-store",
-    });
-  } catch (err) {
-    if (err instanceof DOMException && err.name === "AbortError") throw err;
-    throw new ApiError(0, "Network error", "NETWORK");
-  }
-
-  const text = await res.text();
-  let json: unknown = null;
-  try {
-    json = text ? JSON.parse(text) : null;
-  } catch {
-    // Non-JSON response (proxy error page etc.)
-  }
-
-  if (!res.ok) {
-    const body = (json ?? {}) as Partial<ApiErrorBody>;
-    const error = new ApiError(res.status, body.message ?? res.statusText, body.code, body.errors);
-    if (error.isUnauthorized && !path.startsWith("/auth/") && typeof window !== "undefined" && !redirectingToLogin) {
-      redirectingToLogin = true;
-      const next = encodeURIComponent(window.location.pathname + window.location.search);
-      // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- runs outside React (fetch layer); hard reload drops stale state
-      window.location.assign(`/admin/login?next=${next}`);
-    }
-    throw error;
-  }
-  return json as T;
+interface ClientConfig {
+  baseUrl: string;
+  /** Readable cookie whose value is echoed in X-CSRF-Token on mutations (double-submit). */
+  csrfCookie: string;
+  /** Called on a 401 outside the auth endpoints (e.g. redirect to a login page). */
+  onUnauthorized?: () => void;
 }
 
-/** Thin typed wrapper. Single-resource calls unwrap `data`; list calls keep `meta`. */
-export const api = {
-  async get<T>(path: string, params?: Record<string, QueryValue>, signal?: AbortSignal): Promise<T> {
-    return (await request<ApiResponse<T>>("GET", path, { params, signal })).data;
-  },
-  list<T>(path: string, params: ListParams, signal?: AbortSignal): Promise<PaginatedResponse<T>> {
-    return request<PaginatedResponse<T>>("GET", path, { params: listParamsToQuery(params), signal });
-  },
-  async post<T>(path: string, body?: unknown): Promise<T> {
-    return (await request<ApiResponse<T>>("POST", path, { body: body ?? {} })).data;
-  },
-  async patch<T>(path: string, body: unknown): Promise<T> {
-    return (await request<ApiResponse<T>>("PATCH", path, { body })).data;
-  },
-  async put<T>(path: string, body: unknown): Promise<T> {
-    return (await request<ApiResponse<T>>("PUT", path, { body })).data;
-  },
-  async delete<T>(path: string, params?: Record<string, QueryValue>): Promise<T> {
-    return (await request<ApiResponse<T>>("DELETE", path, { params })).data;
-  },
-};
+/** Creates a typed REST client. Single-resource calls unwrap `data`; list calls keep `meta`. */
+export function createApiClient(config: ClientConfig) {
+  let redirecting = false;
+
+  async function request<T>(method: string, path: string, opts: RequestOptions = {}): Promise<T> {
+    const headers: Record<string, string> = { Accept: "application/json" };
+    const isForm = typeof FormData !== "undefined" && opts.body instanceof FormData;
+    if (opts.body !== undefined && !isForm) headers["Content-Type"] = "application/json";
+    if (method !== "GET") {
+      const csrf = readCookie(config.csrfCookie);
+      if (csrf) headers[CSRF_HEADER] = csrf;
+    }
+
+    let res: Response;
+    try {
+      res = await fetch(`${config.baseUrl}${path}${toQueryString(opts.params)}`, {
+        method,
+        headers,
+        body: opts.body === undefined ? undefined : isForm ? (opts.body as FormData) : JSON.stringify(opts.body),
+        credentials: "include",
+        signal: opts.signal,
+        cache: "no-store",
+      });
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") throw err;
+      throw new ApiError(0, "Network error", "NETWORK");
+    }
+
+    const text = await res.text();
+    let json: unknown = null;
+    try {
+      json = text ? JSON.parse(text) : null;
+    } catch {
+      // Non-JSON response (proxy error page etc.)
+    }
+
+    if (!res.ok) {
+      const body = (json ?? {}) as Partial<ApiErrorBody>;
+      const error = new ApiError(res.status, body.message ?? res.statusText, body.code, body.errors);
+      if (error.isUnauthorized && !path.startsWith("/auth/") && typeof window !== "undefined" && !redirecting && config.onUnauthorized) {
+        redirecting = true;
+        config.onUnauthorized();
+      }
+      throw error;
+    }
+    return json as T;
+  }
+
+  return {
+    async get<T>(path: string, params?: Record<string, QueryValue>, signal?: AbortSignal): Promise<T> {
+      return (await request<ApiResponse<T>>("GET", path, { params, signal })).data;
+    },
+    list<T>(path: string, params: ListParams, signal?: AbortSignal): Promise<PaginatedResponse<T>> {
+      return request<PaginatedResponse<T>>("GET", path, { params: listParamsToQuery(params), signal });
+    },
+    async post<T>(path: string, body?: unknown): Promise<T> {
+      return (await request<ApiResponse<T>>("POST", path, { body: body ?? {} })).data;
+    },
+    async patch<T>(path: string, body: unknown): Promise<T> {
+      return (await request<ApiResponse<T>>("PATCH", path, { body })).data;
+    },
+    async put<T>(path: string, body: unknown): Promise<T> {
+      return (await request<ApiResponse<T>>("PUT", path, { body })).data;
+    },
+    async delete<T>(path: string, params?: Record<string, QueryValue>): Promise<T> {
+      return (await request<ApiResponse<T>>("DELETE", path, { params })).data;
+    },
+  };
+}
+
+export type ApiClient = ReturnType<typeof createApiClient>;
+
+function hardRedirect(path: string) {
+  const next = encodeURIComponent(window.location.pathname + window.location.search);
+  // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- runs outside React (fetch layer); hard reload drops stale state
+  window.location.assign(`${path}?next=${next}`);
+}
+
+/** Admin panel API (session expiry → admin login). */
+export const api = createApiClient({ baseUrl: API_BASE_URL, csrfCookie: CSRF_COOKIE, onUnauthorized: () => hardRedirect("/admin/login") });
+
+/** Public marketplace API (separate session). */
+export const SITE_API_BASE_URL = process.env.NEXT_PUBLIC_SITE_API_URL ?? "/api/app";
+export const siteApi = createApiClient({ baseUrl: SITE_API_BASE_URL, csrfCookie: "barter_user_csrf", onUnauthorized: () => hardRedirect("/login") });

@@ -1,15 +1,32 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { useCallback, useMemo } from "react";
+import { createContext, createElement, useCallback, useContext, useMemo, type ReactNode } from "react";
 import { useT } from "@/lib/i18n/provider";
-import { commonService } from "@/services/common.service";
+import { commonService, type Lookups } from "@/services/common.service";
 
 export const lookupsQueryKey = ["lookups"] as const;
 
+interface LookupsSource {
+  queryKey: readonly unknown[];
+  queryFn: () => Promise<Lookups>;
+}
+
+const LookupsSourceContext = createContext<LookupsSource>({ queryKey: lookupsQueryKey, queryFn: commonService.lookups });
+
+/**
+ * Overrides where reference data comes from. The admin panel uses the admin
+ * API (default); the public site provides its own public lookups endpoint so
+ * shared form components work for marketplace users too.
+ */
+export function LookupsSourceProvider({ value, children }: { value: LookupsSource; children: ReactNode }) {
+  return createElement(LookupsSourceContext.Provider, { value }, children);
+}
+
 /** Reference data (regions, districts, categories, attributes) cached for the session. */
 export function useLookups() {
-  return useQuery({ queryKey: lookupsQueryKey, queryFn: commonService.lookups, staleTime: 5 * 60_000 });
+  const source = useContext(LookupsSourceContext);
+  return useQuery({ queryKey: source.queryKey, queryFn: source.queryFn, staleTime: 5 * 60_000 });
 }
 
 /** Helpers resolving ids to localized names. Returns "—" while loading or when unknown. */

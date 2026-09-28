@@ -20,7 +20,7 @@ export function route(method: Method, path: string, handler: Route["handler"], o
   return { method, path, handler, public: opts.public };
 }
 
-function match(pattern: string, segments: string[]): Record<string, string> | null {
+export function match(pattern: string, segments: string[]): Record<string, string> | null {
   const parts = pattern.split("/").filter(Boolean);
   if (parts.length !== segments.length) return null;
   const params: Record<string, string> = {};

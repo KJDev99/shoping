@@ -17,6 +17,7 @@ import { notifications } from "./notifications";
 import { profile } from "./profile";
 import { reports } from "./reports";
 import { settings } from "./settings";
+import { site } from "./site";
 import { users } from "./users";
 
 const namespaces = {
@@ -41,6 +42,7 @@ const namespaces = {
   audit,
   settings,
   profile,
+  site,
 };
 
 type Namespaces = typeof namespaces;

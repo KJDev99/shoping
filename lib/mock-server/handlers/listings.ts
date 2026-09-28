@@ -71,7 +71,7 @@ function transition(
 }
 
 /** Validates references (category tree, region/district, preferences) that a Zod schema can't know about. */
-function validateReferences(db: MockDb, input: ListingUpdateInput, current: Listing): FieldErrors {
+export function validateReferences(db: MockDb, input: ListingUpdateInput, current: Listing | null): FieldErrors {
   const errors: FieldErrors = {};
   const add = (k: string, m: string) => (errors[k] ??= []).push(m);
   const cats = new Map(db.categories.map((c) => [c.id, c]));
@@ -97,7 +97,7 @@ function validateReferences(db: MockDb, input: ListingUpdateInput, current: List
   if (
     p.cashDifference &&
     !db.settings.barter.allowCashDifference &&
-    JSON.stringify(p.cashDifference) !== JSON.stringify(current.exchangePreferences.cashDifference)
+    JSON.stringify(p.cashDifference) !== JSON.stringify(current?.exchangePreferences.cashDifference ?? null)
   ) {
     add("exchangePreferences.cashDifference", LISTING_VALIDATION.cashDifferenceDisabled);
   }

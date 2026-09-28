@@ -75,6 +75,30 @@ export interface PasswordResetRecord {
   expiresAt: number;
 }
 
+/** Marketplace (end-user) session — separate cookie and store from admin sessions. */
+export interface UserSessionRecord {
+  token: string;
+  userId: ID;
+  csrfToken: string;
+  expiresAt: number;
+}
+
+export interface OtpRecord {
+  phone: string;
+  code: string;
+  expiresAt: number;
+  attempts: number;
+  sentAt: number;
+}
+
+export interface UploadRecord {
+  id: string;
+  userId: ID;
+  contentType: string;
+  data: Uint8Array;
+  createdAt: number;
+}
+
 export interface MockDb {
   admins: AdminRecord[];
   users: User[];
@@ -97,6 +121,10 @@ export interface MockDb {
   settings: PlatformSettings;
   sessions: Map<string, SessionRecord>;
   passwordResets: Map<string, PasswordResetRecord>;
+  userSessions: Map<string, UserSessionRecord>;
+  /** Keyed by normalized phone (digits only). */
+  otps: Map<string, OtpRecord>;
+  uploads: Map<string, UploadRecord>;
   seq: Record<string, number>;
   /** Monotonic counter bumped on any listing change; used to invalidate the match cache. */
   listingsVersion: number;
@@ -1057,6 +1085,9 @@ function generate(): MockDb {
     settings,
     sessions: new Map(),
     passwordResets: new Map(),
+    userSessions: new Map(),
+    otps: new Map(),
+    uploads: new Map(),
     seq: {},
     listingsVersion: 0,
   };

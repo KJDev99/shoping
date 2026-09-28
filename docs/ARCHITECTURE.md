@@ -24,6 +24,13 @@ UI component → hooks/use-<module>.ts (TanStack Query) → services/<module>.se
 ```
 Swapping in the real backend = set `NEXT_PUBLIC_API_URL`; services/hooks/UI don't change.
 
+### Public marketplace
+`app/(site)/*` pages → `components/site/*` → `services/site.service.ts` → `siteApi` (`NEXT_PUBLIC_SITE_API_URL`, default `/api/app`)
+→ `lib/mock-server/app` (own router, `barter_session` cookie, `barter_user_csrf` double-submit). The admin and marketplace sessions are
+fully separate. Public responses use `PublicListing`/`PublicOwner` (`types/site.ts`) and never include phones or moderation data.
+Shared admin form pieces (attribute inputs, exchange-preferences editor) work on the site because `useLookups()` reads its source from
+`LookupsSourceProvider` (the site provides the public `/lookups`).
+
 ### API contract
 - Single: `{ success: true, message, data }` → `api.get/post/patch/delete` return `data`.
 - List: `{ success: true, data: [], meta: { page, limit, total, totalPages } }` → `api.list<T>(path, ListParams)`.
