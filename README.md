@@ -1,36 +1,56 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Barter.uz — Admin Panel
 
-## Getting Started
+Admin panel for **Barter.uz**, a barter marketplace in Uzbekistan where users trade **item ↔ item**.
+The platform has no selling, prices, cart, checkout, payments or orders. An optional "cash difference" can be recorded as a
+note during negotiation. The setting is off by default, and no payment is ever processed.
 
-First, run the development server:
+## Quick start
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+npm run dev        # http://localhost:3000 → /admin/login
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Demo accounts (mock backend only), password **`Barter2026!`**:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+| Email | Role |
+|---|---|
+| superadmin@barter.uz | SUPER_ADMIN (full access, manages admins) |
+| admin@barter.uz | ADMIN |
+| moderator@barter.uz | MODERATOR |
+| support@barter.uz | SUPPORT (mostly read-only) |
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Sections
 
-## Learn More
+Dashboard · Users · Listings · Barter Requests · Exchanges (+ Disputes) · Matches · Categories (+ dynamic attributes) ·
+Locations · Reports · Moderation (queues + safety tools) · Notifications · Admins (RBAC) · Audit Logs · Settings · Profile.
 
-To learn more about Next.js, take a look at the following resources:
+## Architecture
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+See **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** for the full contract. In short:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```
+app/admin/(auth)/…          login, forgot/reset password
+app/admin/(panel)/…         authenticated pages (Server Component route files)
+app/api/admin/[...path]     mock REST backend (remove when the real API exists)
+components/{admin,common,tables,dialogs,forms,charts,ui}
+services/*.service.ts       typed API layer (one per module)
+hooks/                      TanStack Query hooks, URL table state, permissions
+schemas/                    Zod schemas shared by forms and the API
+lib/mock, lib/mock-server   seeded data + handlers (auth, RBAC, CSRF, audit)
+lib/i18n                    uz (default) / ru / en, type-checked keys
+types/                      database-ready domain models
+proxy.ts                    auth gate + security headers (Next 16 "proxy")
+```
 
-## Deploy on Vercel
+### Connecting the real backend
+Set `NEXT_PUBLIC_API_URL` (for example `https://api.barter.uz/admin`). The backend must implement the same endpoints and
+envelopes (`{ success, message, data }`, paginated `{ data, meta }`, errors with `errors` field map), use an httpOnly
+session cookie and a readable `barter_csrf` cookie checked against the `X-CSRF-Token` header, and **enforce every
+permission server-side**. Frontend permission checks only hide or disable UI.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### Environment
+| Variable | Default | Purpose |
+|---|---|---|
+| `NEXT_PUBLIC_API_URL` | `/api/admin` | API base URL |
+| `MOCK_API_LATENCY_MS` | `250` | Simulated latency of the mock backend |
