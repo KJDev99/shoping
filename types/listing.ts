@@ -38,6 +38,8 @@ export interface ListingVideo {
   url: string;
   durationSec: number;
   sizeMb: number;
+  /** How many times the video was played by visitors (owner plays are not counted). */
+  views: number;
 }
 
 /** What the owner wants to receive. Every listing has exactly one. */

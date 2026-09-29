@@ -2,7 +2,7 @@
 
 import { ArrowLeftRight, CheckCircle2 } from "lucide-react";
 import type { ReactNode } from "react";
-import { LocaleSwitcher, ThemeToggle } from "@/components/admin/layout/header-menus";
+import { LocaleSwitcher } from "@/components/admin/layout/header-menus";
 import { useT } from "@/lib/i18n/provider";
 
 export function AuthLayoutShell({ children }: { children: ReactNode }) {
@@ -32,7 +32,6 @@ export function AuthLayoutShell({ children }: { children: ReactNode }) {
       <main className="flex flex-col">
         <div className="flex justify-end gap-1 p-4">
           <LocaleSwitcher />
-          <ThemeToggle />
         </div>
         <div className="flex flex-1 items-center justify-center px-4 pb-16">
           <div className="w-full max-w-sm">{children}</div>

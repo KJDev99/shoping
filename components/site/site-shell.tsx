@@ -1,11 +1,11 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeftRight, LogOut, Package, Plus, Search, User } from "lucide-react";
+import { ArrowLeftRight, LogOut, Package, Plus, Repeat, Search, User } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useState, type FormEvent, type ReactNode } from "react";
-import { LocaleSwitcher, ThemeToggle } from "@/components/admin/layout/header-menus";
+import { LocaleSwitcher } from "@/components/admin/layout/header-menus";
 import { ButtonLink } from "@/components/common/button-link";
 import { UserAvatar } from "@/components/common/cells";
 import { Button } from "@/components/ui/button";
@@ -31,13 +31,18 @@ export function SiteShell({ children }: { children: ReactNode }) {
   const t = useT();
   return (
     <LookupsSourceProvider value={SITE_LOOKUPS}>
-      <div className="flex min-h-svh flex-col bg-muted/40">
+      <div className="relative isolate flex min-h-svh flex-col bg-[oklch(0.975_0.008_262)]">
+        {/* Decorative soft color blobs behind the page. */}
+        <div aria-hidden className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
+          <div className="absolute -top-48 -left-40 size-[36rem] rounded-full bg-primary/15 blur-3xl" />
+          <div className="absolute top-1/4 -right-48 size-[32rem] rounded-full bg-violet-400/15 blur-3xl" />
+          <div className="absolute -bottom-56 left-1/4 size-[34rem] rounded-full bg-sky-300/20 blur-3xl" />
+        </div>
         <SiteHeader />
         <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-6 sm:py-8">{children}</main>
-        <footer className="border-t bg-background">
+        <footer className="glass border-t border-white/60">
           <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-5 text-sm text-muted-foreground sm:px-6">
             <span>{t("site.footer")}</span>
-            <ThemeToggle />
           </div>
         </footer>
       </div>
@@ -62,7 +67,7 @@ function HeaderSearch({ className }: { className?: string }) {
     <form onSubmit={submit} className={className} role="search">
       <div className="relative">
         <Search className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted-foreground" />
-        <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("site.home.searchPlaceholder")} className="h-10 rounded-full bg-muted/60 pl-10 text-base sm:text-sm" aria-label={t("common.actions.search")} />
+        <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("site.home.searchPlaceholder")} className="h-10 rounded-full border-transparent bg-white/80 pl-10 text-base shadow-[inset_0_0_0_1px_oklch(0.9_0.01_262)] sm:text-sm" aria-label={t("common.actions.search")} />
       </div>
     </form>
   );
@@ -71,10 +76,10 @@ function HeaderSearch({ className }: { className?: string }) {
 function SiteHeader() {
   const t = useT();
   return (
-    <header className="sticky top-0 z-30 border-b bg-background">
+    <header className="glass sticky top-0 z-30 border-b border-white/60 shadow-[0_8px_30px_-20px_oklch(0.35_0.12_262/0.35)]">
       <div className="mx-auto flex h-16 max-w-6xl items-center gap-3 px-4 sm:px-6">
         <Link href="/" className="flex shrink-0 items-center gap-2 font-semibold">
-          <span className="flex size-9 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+          <span className="flex size-9 items-center justify-center rounded-xl bg-linear-to-br from-primary to-violet-600 text-primary-foreground shadow-md shadow-primary/30">
             <ArrowLeftRight className="size-4" />
           </span>
           <span className="hidden text-lg sm:inline">Barter.uz</span>
@@ -83,7 +88,7 @@ function SiteHeader() {
         <div className="ml-auto flex items-center gap-1 sm:gap-2">
           <LocaleSwitcher />
           <AccountMenu />
-          <ButtonLink href="/listings/new" className="h-10 rounded-full px-4">
+          <ButtonLink href="/listings/new" className="h-10 rounded-full px-4 shadow-lg shadow-primary/25">
             <Plus />
             {t("site.nav.post")}
           </ButtonLink>
@@ -133,6 +138,9 @@ function AccountMenu() {
         <DropdownMenuSeparator />
         <DropdownMenuItem render={<Link href="/my/listings" />}>
           <Package /> {t("site.nav.myListings")}
+        </DropdownMenuItem>
+        <DropdownMenuItem render={<Link href="/my/offers" />}>
+          <Repeat /> {t("site.nav.offers")}
         </DropdownMenuItem>
         <DropdownMenuItem render={<Link href="/listings/new" />}>
           <Plus /> {t("site.nav.post")}

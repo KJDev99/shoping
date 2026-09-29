@@ -94,6 +94,7 @@ export interface OtpRecord {
 export interface UploadRecord {
   id: string;
   userId: ID;
+  kind?: "image" | "video";
   contentType: string;
   data: Uint8Array;
   createdAt: number;
@@ -402,7 +403,7 @@ function generate(): MockDb {
         sortOrder: k,
         isCover: k === 0,
       })),
-      video: rnd.chance(0.12) ? { url: "/videos/sample.mp4", durationSec: rnd.int(10, 60), sizeMb: rnd.int(5, 45) } : null,
+      video: rnd.chance(0.12) ? { url: "/videos/sample.mp4", durationSec: rnd.int(10, 60), sizeMb: rnd.int(5, 45), views: rnd.int(0, 400) } : null,
       attributes: attrValues,
       regionId: owner.regionId,
       districtId: owner.districtId ?? (ownerRegionDistricts[0]?.id ?? null),

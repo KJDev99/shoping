@@ -17,6 +17,11 @@ import {
 const CODE_TTL_MS = 5 * 60_000;
 const RESEND_AFTER_MS = 60_000;
 const MAX_ATTEMPTS = 5;
+/**
+ * The mock has no SMS provider, so by default ANY 6-digit code is accepted (demo convenience).
+ * Set MOCK_STRICT_OTP=true to check the generated code instead. A real backend must always verify it.
+ */
+const ACCEPT_ANY_CODE = process.env.MOCK_STRICT_OTP !== "true";
 
 export function toSiteUser(u: User): SiteUser {
   return {
@@ -42,13 +47,13 @@ function token() {
   return crypto.randomUUID().replace(/-/g, "") + crypto.randomUUID().replace(/-/g, "");
 }
 
-function createUser(db: MockDb, phone: string, profile: { firstName: string; lastName: string; regionId: string }): User {
+function createUser(db: MockDb, phone: string, profile: { firstName: string; lastName?: string; regionId: string }): User {
   const now = new Date().toISOString();
-  const fullName = `${profile.firstName} ${profile.lastName}`;
+  const fullName = `${profile.firstName} ${profile.lastName ?? ""}`.trim();
   const user: User = {
     id: nextId(db, "usr"),
     firstName: profile.firstName,
-    lastName: profile.lastName,
+    lastName: profile.lastName ?? "",
     fullName,
     username: `${fullName.toLowerCase().replace(/[^a-z]/g, "")}${Math.floor(Math.random() * 90 + 10)}`,
     phone: formatPhone(phone),
@@ -90,7 +95,7 @@ export const authRoutes = [
       const { phone } = validate(requestCodeSchema, ctx.body);
       const key = normalizePhone(phone);
       const existing = ctx.db.otps.get(key);
-      if (existing && Date.now() - existing.sentAt < RESEND_AFTER_MS) throw tooManyRequests("Please wait before requesting a new code");
+      if (!ACCEPT_ANY_CODE && existing && Date.now() - existing.sentAt < RESEND_AFTER_MS) throw tooManyRequests("Please wait before requesting a new code");
       const user = findByPhone(ctx.db, phone);
       if (user && (user.status === "BLOCKED" || user.status === "DELETED")) {
         throw new HttpError(403, "This account is blocked", "ACCOUNT_BLOCKED");
@@ -103,6 +108,7 @@ export const authRoutes = [
         resendAfterSec: RESEND_AFTER_MS / 1000,
         // Never expose codes in production unless explicitly enabled for a demo deployment of the mock.
         devCode: process.env.NODE_ENV !== "production" || process.env.MOCK_EXPOSE_OTP === "true" ? code : null,
+        acceptsAnyCode: ACCEPT_ANY_CODE,
       });
     },
     { public: true },
@@ -115,14 +121,16 @@ export const authRoutes = [
       const input = validate(verifyCodeSchema, ctx.body);
       const key = normalizePhone(input.phone);
       const otp = ctx.db.otps.get(key);
-      if (!otp || otp.expiresAt < Date.now()) throw unprocessable({ code: ["site.validation.codeExpired"] });
-      if (otp.attempts >= MAX_ATTEMPTS) {
-        ctx.db.otps.delete(key);
-        throw tooManyRequests("Too many wrong codes. Request a new one.");
-      }
-      if (otp.code !== input.code) {
-        otp.attempts += 1;
-        throw unprocessable({ code: ["site.validation.codeWrong"] });
+      if (!ACCEPT_ANY_CODE) {
+        if (!otp || otp.expiresAt < Date.now()) throw unprocessable({ code: ["site.validation.codeExpired"] });
+        if (otp.attempts >= MAX_ATTEMPTS) {
+          ctx.db.otps.delete(key);
+          throw tooManyRequests("Too many wrong codes. Request a new one.");
+        }
+        if (otp.code !== input.code) {
+          otp.attempts += 1;
+          throw unprocessable({ code: ["site.validation.codeWrong"] });
+        }
       }
 
       let user = findByPhone(ctx.db, input.phone);

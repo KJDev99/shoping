@@ -11,10 +11,14 @@ npm install
 npm run dev
 ```
 
-- **Marketplace:** http://localhost:3000. Anyone can browse listings. Click **"E'lon joylash"** to post one.
-  Sign in with any Uzbek phone number (`+998 …`). The mock backend has no SMS provider, so the one-time code is
-  shown on screen (in `npm run dev`, or when `MOCK_EXPOSE_OTP=true`). A new number is asked for a name and
-  region, and an account is created. New listings go to moderation and appear in **Admin → Moderation → Pending listings**.
+- **Marketplace:** http://localhost:3000. Anyone can browse listings. Click **"E'lon joylash"** to post one —
+  no account needed: the form asks for a name and phone number at the end, and the SMS code creates the account
+  and publishes the listing in one step. Sign in at `/login` with any Uzbek phone number (`+998 …`).
+  The mock backend has no SMS provider, so **any 6-digit code is accepted** (set `MOCK_STRICT_OTP=true` to require
+  the generated code). New listings go to moderation and appear in **Admin → Moderation → Pending listings**.
+- **Offers:** on someone else's listing press **"Almashishni taklif qilish"**, pick one or more of your active
+  listings and send. Offers are answered in **Takliflarim** (`/my/offers`); after acceptance both sides see each
+  other's phone number.
 - **Admin panel:** http://localhost:3000/admin/login.
 
 Demo accounts (mock backend only), password **`Barter2026!`**:
@@ -28,10 +32,11 @@ Demo accounts (mock backend only), password **`Barter2026!`**:
 
 ## Marketplace (public site)
 
-`/` listings feed (search, category, region, condition, "open to any offer") · `/listings/[id]` listing page
-(photos, attributes, what the owner wants in exchange) · `/login` phone + SMS code · `/listings/new` post a listing
-(image upload with type/size/content checks, category attributes, exchange preferences) · `/my/listings`
-(status and rejection reason). The public API (`/api/app/*`) uses its own session cookie and never exposes phone
+`/` listings feed (search, category, region) · `/listings/[id]` listing page (photos, video with a play counter,
+attributes, hashtags of what the owner wants, "offer an exchange") · `/login` phone + SMS code · `/listings/new`
+post a listing, also as a guest (photos ≤5 MB, one video ≤10 MB, type checked by file content, hashtags) ·
+`/my/listings` (status and rejection reason) · `/my/offers` (received / sent offers: accept, decline, cancel).
+The site is light-theme only. The public API (`/api/app/*`) uses its own session cookie and never exposes phone
 numbers or moderation data.
 
 ## Admin sections
@@ -70,3 +75,4 @@ permission server-side**. Frontend permission checks only hide or disable UI.
 | `NEXT_PUBLIC_SITE_API_URL` | `/api/app` | Public marketplace API base URL |
 | `MOCK_API_LATENCY_MS` | `250` | Simulated latency of the mock backend |
 | `MOCK_EXPOSE_OTP` | unset | Show SMS codes in a production build of the mock (always shown in dev). Never enable with real users. |
+| `MOCK_STRICT_OTP` | unset | `true` = the mock checks the generated SMS code instead of accepting any 6 digits. |

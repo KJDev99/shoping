@@ -58,7 +58,7 @@ export function MyListingsPage() {
           icon={<PackageOpen />}
           title={t("site.my.empty")}
           action={<ButtonLink href="/listings/new">{t("site.my.emptyCta")}</ButtonLink>}
-          className="rounded-3xl bg-card ring-1 ring-border/60"
+          className="rounded-3xl surface"
         />
       ) : (
         <div className="grid grid-cols-2 gap-3 sm:gap-5 md:grid-cols-3 lg:grid-cols-4">

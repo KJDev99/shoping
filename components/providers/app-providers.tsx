@@ -10,7 +10,7 @@ import { QueryProvider } from "./query-provider";
 
 export function AppProviders({ locale, children }: { locale: Locale; children: ReactNode }) {
   return (
-    <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+    <ThemeProvider attribute="class" defaultTheme="light" forcedTheme="light" enableSystem={false} disableTransitionOnChange>
       <I18nProvider initialLocale={locale}>
         <QueryProvider>
           <TooltipProvider delay={300}>

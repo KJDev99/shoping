@@ -11,6 +11,8 @@ import { formatDate, formatNumber } from "@/lib/format";
 import { useLocale, useT } from "@/lib/i18n/provider";
 import type { ExchangePreference, ListingAttributeValue, PublicListing } from "@/types";
 import { ListingCard } from "./listing-card";
+import { ListingVideo } from "./listing-video";
+import { OfferAction } from "./offer-action";
 
 export function ListingPage({ id }: { id: string }) {
   const t = useT();
@@ -20,7 +22,7 @@ export function ListingPage({ id }: { id: string }) {
 
   if (query.isPending) return <DetailSkeleton />;
   if (query.isError) return <ErrorState error={query.error} onRetry={() => query.refetch()} backHref="/" />;
-  const { listing: l, status, isOwner } = query.data;
+  const { listing: l, status, isOwner, myOffer } = query.data;
   const category = [names.category(l.categoryId), l.subcategoryId ? names.category(l.subcategoryId) : null].filter(Boolean).join(" › ");
 
   return (
@@ -42,14 +44,15 @@ export function ListingPage({ id }: { id: string }) {
 
       <div className="grid items-start gap-6 lg:grid-cols-[1.5fr_1fr]">
         <div className="min-w-0 space-y-6">
-          <div className="rounded-3xl bg-card p-3 ring-1 ring-border/60">
+          <div className="rounded-3xl surface p-3">
             <ListingGallery images={l.images} video={null} title={l.title} />
           </div>
-          <About listing={l} category={category} />
+          {l.video && <ListingVideo listingId={l.id} video={l.video} />}
         </div>
 
-        <aside className="space-y-4 lg:sticky lg:top-24">
-          <section className="space-y-4 rounded-3xl bg-card p-5 ring-1 ring-border/60">
+        {/* On phones the title, "wants" and the offer button come right after the photos. */}
+        <aside className="space-y-4 lg:sticky lg:top-24 lg:col-start-2 lg:row-span-2 lg:row-start-1">
+          <section className="space-y-4 rounded-3xl surface p-5">
             <div className="space-y-2">
               <h1 className="text-2xl font-bold tracking-tight text-balance">{l.title}</h1>
               <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
@@ -59,6 +62,7 @@ export function ListingPage({ id }: { id: string }) {
               </p>
             </div>
             <WantsCard preferences={l.exchangePreferences} />
+            {!isOwner && status === "ACTIVE" && <OfferAction listingId={l.id} title={l.title} myOffer={myOffer} />}
             <div className="flex items-center gap-3 border-t pt-4">
               <UserAvatar name={l.owner.fullName} src={l.owner.avatar} className="size-11" />
               <div className="min-w-0 flex-1">
@@ -76,6 +80,10 @@ export function ListingPage({ id }: { id: string }) {
             {t("site.detail.safety")}
           </p>
         </aside>
+
+        <div className="min-w-0 lg:col-start-1">
+          <About listing={l} category={category} />
+        </div>
       </div>
 
       {status === "ACTIVE" && <Similar id={l.id} />}
@@ -98,15 +106,15 @@ function WantsCard({ preferences: p }: { preferences: ExchangePreference }) {
   const names = useLookupNames();
   const wanted = [...p.keywords, ...(p.subcategories.length ? p.subcategories : p.categories).map(names.category)];
   return (
-    <div className="space-y-3 rounded-2xl bg-primary/10 p-4">
+    <div className="space-y-3 rounded-2xl bg-linear-to-br from-primary/10 to-violet-500/10 p-4">
       <h2 className="flex items-center gap-2 text-sm font-semibold text-primary">
         <ArrowLeftRight className="size-4" /> {t("site.detail.wantsTitle")}
       </h2>
       {wanted.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
           {wanted.map((w) => (
-            <span key={w} className="rounded-full bg-background px-3 py-1 text-sm font-medium">
-              {w}
+            <span key={w} className="rounded-full bg-white px-3 py-1 text-sm font-medium text-primary shadow-sm">
+              #{w}
             </span>
           ))}
         </div>
@@ -144,7 +152,7 @@ function About({ listing, category }: { listing: PublicListing; category: string
     ...(listing.location ? [{ label: t("site.detail.location"), value: listing.location }] : []),
   ];
   return (
-    <section className="space-y-5 rounded-3xl bg-card p-5 ring-1 ring-border/60 sm:p-6">
+    <section className="space-y-5 rounded-3xl surface p-5 sm:p-6">
       <div className="space-y-2">
         <h2 className="text-lg font-semibold">{t("site.detail.description")}</h2>
         <p className="leading-relaxed whitespace-pre-wrap">{listing.description}</p>

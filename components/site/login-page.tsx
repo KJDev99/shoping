@@ -41,7 +41,7 @@ export function LoginPage() {
         <h1 className="text-2xl font-bold tracking-tight">{t("site.login.title")}</h1>
         <p className="text-sm text-muted-foreground">{needsLoginForPost ? t("site.login.required") : t("site.login.subtitle")}</p>
       </div>
-      <div className="rounded-3xl bg-card p-6 ring-1 ring-border/60 sm:p-8">
+      <div className="rounded-3xl surface p-6 sm:p-8">
         {phone ? (
           <CodeStep
             phone={phone}
@@ -80,7 +80,7 @@ function PhoneStep({ onSent }: { onSent: (phone: string, devCode: string | null,
   const form = useForm<RequestCodeInput>({ resolver: zodResolver(requestCodeSchema), defaultValues: { phone: "+998 " } });
   const send = useMutation({
     mutationFn: siteService.requestCode,
-    onSuccess: (d, v) => onSent(v.phone, d.devCode, Date.now() + d.resendAfterSec * 1000),
+    onSuccess: (d, v) => onSent(v.phone, d.acceptsAnyCode ? "any" : d.devCode, Date.now() + d.resendAfterSec * 1000),
     onError: (e) => {
       if (!applyFieldErrors(e, form.setError)) setFormError(errorText(e));
     },
@@ -156,7 +156,7 @@ function CodeStep({
   });
   const resend = useMutation({
     mutationFn: () => siteService.requestCode({ phone }),
-    onSuccess: (d) => onResent(d.devCode, Date.now() + d.resendAfterSec * 1000),
+    onSuccess: (d) => onResent(d.acceptsAnyCode ? "any" : d.devCode, Date.now() + d.resendAfterSec * 1000),
     onError: (e) => setFormError(errorText(e)),
   });
   const { errors } = form.formState;
@@ -176,13 +176,22 @@ function CodeStep({
           {t("site.login.changePhone")}
         </button>
       </p>
-      {devCode && (
+      {devCode === "any" ? (
         <p className="rounded-2xl bg-primary/10 px-4 py-3 text-sm">
-          {t("site.login.devCode", { code: "" })}
-          <button type="button" className="font-mono font-semibold tracking-widest" onClick={() => form.setValue("code", devCode, { shouldValidate: true })}>
-            {devCode}
+          {t("site.login.anyCode")}{" "}
+          <button type="button" className="font-mono font-semibold tracking-widest underline-offset-2 hover:underline" onClick={() => form.setValue("code", "123456", { shouldValidate: true })}>
+            123456
           </button>
         </p>
+      ) : (
+        devCode && (
+          <p className="rounded-2xl bg-primary/10 px-4 py-3 text-sm">
+            {t("site.login.devCode", { code: "" })}
+            <button type="button" className="font-mono font-semibold tracking-widest" onClick={() => form.setValue("code", devCode, { shouldValidate: true })}>
+              {devCode}
+            </button>
+          </p>
+        )
       )}
       <FormError message={formError} />
       <Field label={t("site.login.code")} htmlFor="code" error={errors.code}>

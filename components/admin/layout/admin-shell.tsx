@@ -10,7 +10,7 @@ import { useT } from "@/lib/i18n/provider";
 import { AppSidebar } from "./app-sidebar";
 import { Breadcrumbs } from "./breadcrumbs";
 import { GlobalSearch } from "./global-search";
-import { AlertsMenu, LocaleSwitcher, ProfileMenu, ThemeToggle } from "./header-menus";
+import { AlertsMenu, LocaleSwitcher, ProfileMenu } from "./header-menus";
 
 /** Authenticated admin chrome: collapsible sidebar (drawer on mobile), header, content. */
 export function AdminShell({ defaultSidebarOpen, children }: { defaultSidebarOpen: boolean; children: ReactNode }) {
@@ -43,7 +43,6 @@ export function AdminShell({ defaultSidebarOpen, children }: { defaultSidebarOpe
             <GlobalSearch />
             <AlertsMenu />
             <LocaleSwitcher />
-            <ThemeToggle />
             <ProfileMenu />
           </div>
         </header>

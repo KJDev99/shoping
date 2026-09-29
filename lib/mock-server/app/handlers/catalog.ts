@@ -3,7 +3,10 @@ import "server-only";
 import type { MockDb } from "@/lib/mock/db";
 import type { Listing, MyListing, PublicListing, PublicListingCard, SiteConfig } from "@/types";
 import { csv, matchesSearch, notFound, ok, paginate, parseListParams, sortItems } from "../../http";
+import { clientIp } from "../../context";
 import { appRoute } from "../core";
+
+const recentVideoViews = new Map<string, number>();
 
 export function toCard(l: Listing): PublicListingCard {
   const p = l.exchangePreferences;
@@ -47,6 +50,8 @@ function toPublic(db: MockDb, l: Listing): PublicListing {
     ...card,
     description: l.description,
     images: l.images,
+    // Only real uploads are playable (seeded demo rows point at a placeholder path).
+    video: l.video?.url.startsWith("/api/app/uploads/") ? l.video : null,
     attributes: l.attributes,
     location: l.location,
     exchangePreferences: db.settings.barter.allowCashDifference ? l.exchangePreferences : { ...l.exchangePreferences, cashDifference: null },
@@ -149,7 +154,30 @@ export const catalogRoutes = [
       // Owners may preview their own pending/rejected listings; everyone else sees active ones only.
       if (!l || l.deletedAt || (!isPublic(ctx.db, l) && !isOwner)) throw notFound("Listing not found");
       if (!isOwner && l.status === "ACTIVE") l.views += 1;
-      return ok({ listing: toPublic(ctx.db, l), status: l.status, isOwner });
+      const myOffer = ctx.user
+        ? ctx.db.barterRequests.find((b) => b.senderId === ctx.user!.id && b.requestedListingIds.includes(l.id) && (b.status === "PENDING" || b.status === "ACCEPTED"))
+        : undefined;
+      return ok({ listing: toPublic(ctx.db, l), status: l.status, isOwner, myOffer: myOffer ? { id: myOffer.id, status: myOffer.status } : null });
+    },
+    { public: true },
+  ),
+
+  /** Counts a video play. Owners are not counted and one visitor counts once per 30 minutes. */
+  appRoute(
+    "POST",
+    "/listings/:id/video-view",
+    (ctx) => {
+      const l = ctx.db.listings.find((x) => x.id === ctx.params.id);
+      if (!l || !l.video || !isPublic(ctx.db, l)) throw notFound("Listing not found");
+      if (ctx.user?.id === l.userId) return ok({ views: l.video.views });
+      const viewer = ctx.user?.id ?? clientIp(ctx.req);
+      const key = `${l.id}:${viewer}`;
+      const last = recentVideoViews.get(key) ?? 0;
+      if (Date.now() - last > 30 * 60_000) {
+        recentVideoViews.set(key, Date.now());
+        l.video.views += 1;
+      }
+      return ok({ views: l.video.views });
     },
     { public: true },
   ),

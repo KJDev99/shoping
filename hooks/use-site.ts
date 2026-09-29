@@ -14,6 +14,7 @@ export const siteKeys = {
   listing: (id: string) => ["site", "listing", id] as const,
   similar: (id: string) => ["site", "similar", id] as const,
   my: (params: ListParams) => ["site", "my", params] as const,
+  offers: (box: "incoming" | "outgoing") => ["site", "my", "offers", box] as const,
 };
 
 export function useSiteUser() {
@@ -67,4 +68,8 @@ export function useSimilarListings(id: string) {
 
 export function useMyListings(params: ListParams) {
   return useQuery({ queryKey: siteKeys.my(params), queryFn: () => siteService.myListings(params), placeholderData: keepPreviousData });
+}
+
+export function useMyOffers(box: "incoming" | "outgoing") {
+  return useQuery({ queryKey: siteKeys.offers(box), queryFn: () => siteService.myOffers(box) });
 }

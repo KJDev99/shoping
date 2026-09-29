@@ -1,5 +1,6 @@
 import type { ID, ISODate } from "./common";
-import type { ExchangePreference, ItemCondition, ListingAttributeValue, ListingImage, ListingStatus, RejectionReason } from "./listing";
+import type { BarterRequestStatus } from "./barter";
+import type { ExchangePreference, ItemCondition, ListingAttributeValue, ListingImage, ListingStatus, ListingVideo, RejectionReason } from "./listing";
 
 /**
  * Public marketplace shapes. They intentionally omit phone numbers, report
@@ -38,6 +39,7 @@ export interface PublicListingCard {
 export interface PublicListing extends Omit<PublicListingCard, "image" | "imagesCount" | "wants"> {
   description: string;
   images: ListingImage[];
+  video: ListingVideo | null;
   attributes: Record<ID, ListingAttributeValue>;
   location: string | null;
   exchangePreferences: ExchangePreference;
@@ -73,4 +75,26 @@ export interface SiteConfig {
   requireModeration: boolean;
   allowCashDifference: boolean;
   allowOpenOffers: boolean;
+}
+
+/** A barter offer as one of its two participants sees it. */
+export interface SiteOffer {
+  id: ID;
+  code: string;
+  status: BarterRequestStatus;
+  direction: "incoming" | "outgoing";
+  /** Items the sender gives. */
+  offered: PublicListingCard[];
+  /** Items the sender wants (the receiver's listings). */
+  requested: PublicListingCard[];
+  counterpart: {
+    id: ID;
+    fullName: string;
+    avatar: string | null;
+    /** Revealed to both sides only after the offer is accepted. */
+    phone: string | null;
+  };
+  message: string | null;
+  createdAt: ISODate;
+  respondedAt: ISODate | null;
 }

@@ -2,8 +2,8 @@ import { NextResponse, type NextRequest } from "next/server";
 
 const SESSION_COOKIE = "barter_admin_session";
 const USER_SESSION_COOKIE = "barter_session";
-/** Marketplace pages that need a signed-in user. */
-const USER_ONLY_PATHS = ["/listings/new", "/my"];
+/** Marketplace pages that need a signed-in user ("/listings/new" works for guests: they confirm their phone on submit). */
+const USER_ONLY_PATHS = ["/my"];
 const PUBLIC_ADMIN_PATHS = ["/admin/login", "/admin/forgot-password", "/admin/reset-password"];
 
 /**
@@ -43,5 +43,5 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/admin/:path*", "/listings/new", "/my/:path*"],
+  matcher: ["/admin/:path*", "/my/:path*"],
 };

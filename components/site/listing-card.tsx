@@ -28,7 +28,7 @@ export function ListingCard({ listing, footer }: { listing: PublicListingCard; f
   const { region } = useLookupNames();
   const wants = useWantsText();
   return (
-    <div className="group flex flex-col overflow-hidden rounded-2xl bg-card shadow-xs ring-1 ring-border/60 transition-shadow hover:shadow-md">
+    <div className="group flex flex-col overflow-hidden rounded-2xl surface transition-all hover:-translate-y-0.5 hover:shadow-xl">
       <Link href={`/listings/${listing.id}`} className="flex flex-1 flex-col focus-visible:outline-none">
         <div className="aspect-[4/3] overflow-hidden">
           <ItemImage src={listing.image} alt={listing.title} className="size-full transition-transform duration-300 group-hover:scale-[1.03]" />
@@ -54,7 +54,7 @@ export function ListingGridSkeleton({ count = 8 }: { count?: number }) {
   return (
     <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-4">
       {Array.from({ length: count }, (_, i) => (
-        <div key={i} className="overflow-hidden rounded-2xl bg-card ring-1 ring-border/60">
+        <div key={i} className="overflow-hidden rounded-2xl surface">
           <div className="aspect-[4/3] animate-pulse bg-muted" />
           <div className="space-y-2 p-3">
             <div className="h-4 w-3/4 animate-pulse rounded bg-muted" />
