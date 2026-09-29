@@ -12,7 +12,7 @@ import { useT } from "@/lib/i18n/provider";
 import type { ListingStatus, MyListing } from "@/types";
 import { ListingCard, ListingGridSkeleton } from "./listing-card";
 
-const TABS = ["ALL", "ACTIVE", "PENDING", "REJECTED", "EXCHANGED", "ARCHIVED"] as const;
+const TABS = ["ALL", "ACTIVE", "PENDING", "REJECTED"] as const;
 
 export function MyListingsPage() {
   const t = useT();
@@ -29,10 +29,10 @@ export function MyListingsPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div className="space-y-1">
-          <h1 className="text-2xl font-semibold tracking-tight">{t("site.my.title")}</h1>
+          <h1 className="text-3xl font-bold tracking-tight">{t("site.my.title")}</h1>
           <p className="text-muted-foreground">{t("site.my.subtitle")}</p>
         </div>
-        <ButtonLink href="/listings/new" className="h-10">
+        <ButtonLink href="/listings/new" className="h-11 rounded-full px-5">
           <Plus /> {t("site.nav.post")}
         </ButtonLink>
       </div>
@@ -58,10 +58,10 @@ export function MyListingsPage() {
           icon={<PackageOpen />}
           title={t("site.my.empty")}
           action={<ButtonLink href="/listings/new">{t("site.my.emptyCta")}</ButtonLink>}
-          className="rounded-xl border bg-card"
+          className="rounded-3xl bg-card ring-1 ring-border/60"
         />
       ) : (
-        <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 sm:gap-5 md:grid-cols-3 lg:grid-cols-4">
           {query.data.data.map((l) => (
             <ListingCard key={l.id} listing={l} footer={<StatusFooter listing={l} />} />
           ))}
@@ -75,12 +75,10 @@ function StatusFooter({ listing: l }: { listing: MyListing }) {
   const t = useT();
   const reason = l.rejectionNote || (l.rejectionReason ? t(`enums.rejectionReason.${l.rejectionReason}`) : "");
   return (
-    <div className="space-y-1.5 border-t px-3 py-2 text-xs">
+    <div className="space-y-1.5 border-t px-3 py-2.5 text-xs sm:px-4">
       <div className="flex flex-wrap items-center justify-between gap-1.5">
         <StatusBadge kind="listingStatus" value={l.status as ListingStatus} />
-        <span className="text-muted-foreground">
-          {t("site.my.offers", { count: l.offersCount })} · {t("site.my.views", { count: l.views })}
-        </span>
+        <span className="text-muted-foreground">{t("site.my.views", { count: l.views })}</span>
       </div>
       {l.status === "PENDING" && (
         <p className="flex items-center gap-1 text-muted-foreground">

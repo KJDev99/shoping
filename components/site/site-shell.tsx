@@ -31,15 +31,13 @@ export function SiteShell({ children }: { children: ReactNode }) {
   const t = useT();
   return (
     <LookupsSourceProvider value={SITE_LOOKUPS}>
-      <div className="flex min-h-svh flex-col bg-muted/30">
+      <div className="flex min-h-svh flex-col bg-muted/40">
         <SiteHeader />
-        <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6">{children}</main>
+        <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-6 sm:py-8">{children}</main>
         <footer className="border-t bg-background">
-          <div className="mx-auto flex max-w-7xl flex-col gap-2 px-4 py-6 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:px-6">
+          <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-5 text-sm text-muted-foreground sm:px-6">
             <span>{t("site.footer")}</span>
-            <Link href="/admin/login" className="hover:text-foreground">
-              {t("site.nav.adminPanel")}
-            </Link>
+            <ThemeToggle />
           </div>
         </footer>
       </div>
@@ -63,8 +61,8 @@ function HeaderSearch({ className }: { className?: string }) {
   return (
     <form onSubmit={submit} className={className} role="search">
       <div className="relative">
-        <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-        <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("site.home.searchPlaceholder")} className="h-9 pl-9" aria-label={t("common.actions.search")} />
+        <Search className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted-foreground" />
+        <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("site.home.searchPlaceholder")} className="h-10 rounded-full bg-muted/60 pl-10 text-base sm:text-sm" aria-label={t("common.actions.search")} />
       </div>
     </form>
   );
@@ -73,22 +71,21 @@ function HeaderSearch({ className }: { className?: string }) {
 function SiteHeader() {
   const t = useT();
   return (
-    <header className="sticky top-0 z-30 border-b bg-background/90 backdrop-blur supports-backdrop-filter:bg-background/75">
-      <div className="mx-auto flex h-16 max-w-7xl items-center gap-3 px-4 sm:px-6">
+    <header className="sticky top-0 z-30 border-b bg-background">
+      <div className="mx-auto flex h-16 max-w-6xl items-center gap-3 px-4 sm:px-6">
         <Link href="/" className="flex shrink-0 items-center gap-2 font-semibold">
-          <span className="flex size-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+          <span className="flex size-9 items-center justify-center rounded-xl bg-primary text-primary-foreground">
             <ArrowLeftRight className="size-4" />
           </span>
-          <span className="hidden sm:inline">Barter.uz</span>
+          <span className="hidden text-lg sm:inline">Barter.uz</span>
         </Link>
         <HeaderSearch className="hidden min-w-0 flex-1 md:block md:max-w-xl" />
-        <div className="ml-auto flex items-center gap-1">
+        <div className="ml-auto flex items-center gap-1 sm:gap-2">
           <LocaleSwitcher />
-          <ThemeToggle />
           <AccountMenu />
-          <ButtonLink href="/listings/new" className="ml-1 h-9">
+          <ButtonLink href="/listings/new" className="h-10 rounded-full px-4">
             <Plus />
-            <span className="hidden sm:inline">{t("site.nav.post")}</span>
+            {t("site.nav.post")}
           </ButtonLink>
         </div>
       </div>
@@ -115,7 +112,7 @@ function AccountMenu() {
   if (isPending) return <span className="size-8" />;
   if (!user) {
     return (
-      <ButtonLink href="/login" variant="ghost" className="h-9">
+      <ButtonLink href="/login" variant="ghost" className="h-10 rounded-full">
         <User />
         <span className="hidden sm:inline">{t("site.nav.login")}</span>
       </ButtonLink>

@@ -1,20 +1,18 @@
 "use client";
 
-import { ArrowLeftRight, Handshake, Loader2, PackagePlus, SearchX } from "lucide-react";
+import { LayoutGrid, Loader2, Plus, SearchX, X } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useMemo } from "react";
+import { useMemo, type ReactNode } from "react";
 import { CategoryIcon } from "@/components/admin/categories/category-icon";
 import { ButtonLink } from "@/components/common/button-link";
 import { SimpleSelect } from "@/components/common/simple-select";
 import { EmptyState, ErrorState } from "@/components/common/states";
 import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
 import { useLookupNames } from "@/hooks/use-lookups";
 import { usePublicListings } from "@/hooks/use-site";
 import { formatNumber } from "@/lib/format";
 import { useLocale, useT } from "@/lib/i18n/provider";
 import { cn } from "@/lib/utils";
-import { ITEM_CONDITIONS } from "@/types";
 import { ListingCard, ListingGridSkeleton } from "./listing-card";
 
 const PAGE_SIZE = 24;
@@ -25,16 +23,11 @@ export function HomePage() {
   const router = useRouter();
   const pathname = usePathname();
   const sp = useSearchParams();
-  const { lookups } = useLookupNames();
+  const { lookups, category } = useLookupNames();
 
-  const filters = {
-    search: sp.get("search") ?? undefined,
-    categoryId: sp.get("categoryId") ?? undefined,
-    regionId: sp.get("regionId") ?? undefined,
-    condition: sp.get("condition") ?? undefined,
-    openToOffers: sp.get("openToOffers") === "true" ? "true" : undefined,
-  };
-  const sort = sp.get("sort") === "views" ? "views" : "createdAt";
+  const search = sp.get("search") ?? undefined;
+  const categoryId = sp.get("categoryId") ?? undefined;
+  const regionId = sp.get("regionId") ?? undefined;
 
   const setParam = (key: string, value: string | null) => {
     const next = new URLSearchParams(sp.toString());
@@ -44,13 +37,7 @@ export function HomePage() {
     router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
   };
 
-  const query = usePublicListings({
-    limit: PAGE_SIZE,
-    search: filters.search,
-    sort,
-    order: "desc",
-    filters: { categoryId: filters.categoryId, regionId: filters.regionId, condition: filters.condition, openToOffers: filters.openToOffers },
-  });
+  const query = usePublicListings({ limit: PAGE_SIZE, search, sort: "createdAt", order: "desc", filters: { categoryId, regionId } });
   const items = query.data?.pages.flatMap((p) => p.data) ?? [];
   const total = query.data?.pages[0]?.meta.total ?? 0;
 
@@ -58,158 +45,124 @@ export function HomePage() {
     () => (lookups?.categories ?? []).filter((c) => !c.parentId).sort((a, b) => a.sortOrder - b.sortOrder),
     [lookups],
   );
-  const categoryOptions = useMemo(() => {
-    const cats = lookups?.categories ?? [];
-    return parents.flatMap((p) => [
-      { value: p.id, label: t.text(p.name) },
-      ...cats
-        .filter((c) => c.parentId === p.id)
-        .sort((a, b) => a.sortOrder - b.sortOrder)
-        .map((c) => ({ value: c.id, label: `   ${t.text(c.name)}` })),
-    ]);
-  }, [lookups, parents, t]);
-  const activeParent = parents.find((p) => p.id === filters.categoryId) ?? parents.find((p) => lookups?.categories.find((c) => c.id === filters.categoryId)?.parentId === p.id);
-  const hasFilters = Object.values(filters).some(Boolean);
+  const activeParentId = categoryId && (lookups?.categories.find((c) => c.id === categoryId)?.parentId ?? categoryId);
+  const hasFilters = !!(search || categoryId || regionId);
 
   return (
-    <div className="space-y-6">
-      {!hasFilters && (
-        <section className="grid gap-6 rounded-2xl border bg-card p-6 sm:p-8 lg:grid-cols-[1.4fr_1fr] lg:items-center">
-          <div className="space-y-3">
-            <h1 className="text-2xl font-semibold tracking-tight text-balance sm:text-3xl">{t("site.home.title")}</h1>
-            <p className="max-w-xl text-muted-foreground">{t("site.home.subtitle")}</p>
-            <ButtonLink href="/listings/new" className="h-10 px-4">
-              <PackagePlus /> {t("site.nav.post")}
-            </ButtonLink>
-          </div>
-          <ol className="grid gap-3 text-sm">
-            {(
-              [
-                ["one", PackagePlus],
-                ["two", ArrowLeftRight],
-                ["three", Handshake],
-              ] as const
-            ).map(([k, Icon], i) => (
-              <li key={k} className="flex items-center gap-3 rounded-xl bg-muted/50 p-3">
-                <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-                  <Icon className="size-4" />
-                </span>
-                <span>
-                  <span className="text-muted-foreground">{i + 1}. </span>
-                  {t(`site.home.how.${k}`)}
-                </span>
-              </li>
-            ))}
-          </ol>
-        </section>
-      )}
+    <div className="space-y-8">
+      {!hasFilters && <Hero />}
 
-      {/* Category shortcuts */}
-      <div className="scrollbar-none -mx-4 flex gap-2 overflow-x-auto px-4 sm:mx-0 sm:px-0">
-        <CategoryChip active={!filters.categoryId} onClick={() => setParam("categoryId", null)} label={t("site.home.allCategories")} />
+      <nav aria-label={t("site.post.category")} className="scrollbar-none -mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:grid sm:grid-cols-5 sm:px-0 lg:grid-cols-9">
+        <CategoryTile active={!categoryId} onClick={() => setParam("categoryId", null)} label={t("site.home.all")} icon={<LayoutGrid className="size-5" />} />
         {parents.map((p) => (
-          <CategoryChip
+          <CategoryTile
             key={p.id}
-            active={activeParent?.id === p.id}
+            active={activeParentId === p.id}
             onClick={() => setParam("categoryId", p.id)}
             label={t.text(p.name)}
-            icon={<CategoryIcon name={p.icon} className="size-4" />}
+            icon={<CategoryIcon name={p.icon} className="size-5" />}
           />
         ))}
-      </div>
+      </nav>
 
-      {/* Filters */}
-      <div className="flex flex-wrap items-center gap-2">
-        <SimpleSelect
-          className="w-full sm:w-56"
-          value={filters.categoryId ?? null}
-          onChange={(v) => setParam("categoryId", v)}
-          options={categoryOptions}
-          clearLabel={t("site.home.allCategories")}
-          aria-label={t("site.post.category")}
-        />
-        <SimpleSelect
-          className="w-full sm:w-52"
-          value={filters.regionId ?? null}
-          onChange={(v) => setParam("regionId", v)}
-          options={(lookups?.regions ?? []).map((r) => ({ value: r.id, label: t.text(r.name) }))}
-          clearLabel={t("site.home.allRegions")}
-          aria-label={t("site.post.region")}
-        />
-        <SimpleSelect
-          className="w-full sm:w-44"
-          value={filters.condition ?? null}
-          onChange={(v) => setParam("condition", v)}
-          options={ITEM_CONDITIONS.map((c) => ({ value: c, label: t(`enums.itemCondition.${c}`) }))}
-          clearLabel={t("site.home.anyCondition")}
-          aria-label={t("site.post.condition")}
-        />
-        <label className="flex h-8 items-center gap-2 rounded-lg border bg-background px-2.5 text-sm">
-          <Switch checked={!!filters.openToOffers} onCheckedChange={(v) => setParam("openToOffers", v ? "true" : null)} />
-          {t("site.home.openToOffersOnly")}
-        </label>
-        <SimpleSelect
-          className="w-full sm:ml-auto sm:w-44"
-          value={sort}
-          onChange={(v) => setParam("sort", v === "views" ? "views" : null)}
-          options={[
-            { value: "createdAt", label: t("site.home.sort.newest") },
-            { value: "views", label: t("site.home.sort.popular") },
-          ]}
-        />
-      </div>
-
-      <p className="text-sm text-muted-foreground" aria-live="polite">
-        {query.isPending ? "…" : t("site.home.results", { count: formatNumber(total, locale) })}
-        {filters.search && <span> · “{filters.search}”</span>}
-      </p>
-
-      {query.isPending ? (
-        <ListingGridSkeleton />
-      ) : query.isError ? (
-        <ErrorState error={query.error} onRetry={() => query.refetch()} />
-      ) : items.length === 0 ? (
-        <EmptyState
-          icon={<SearchX />}
-          title={t("site.home.empty")}
-          description={t("site.home.emptyHint")}
-          action={<ButtonLink href="/listings/new">{t("site.nav.post")}</ButtonLink>}
-          className="rounded-xl border bg-card"
-        />
-      ) : (
-        <>
-          <div className={cn("grid grid-cols-2 gap-3 transition-opacity sm:gap-4 md:grid-cols-3 lg:grid-cols-4", query.isFetching && !query.isFetchingNextPage && "opacity-70")}>
-            {items.map((l) => (
-              <ListingCard key={l.id} listing={l} />
-            ))}
+      <section className="space-y-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div className="min-w-0">
+            <h2 className="truncate text-xl font-semibold tracking-tight">
+              {search ? t("site.home.searchResults", { q: search }) : categoryId ? category(categoryId) : t("site.home.latest")}
+            </h2>
+            <p className="text-sm text-muted-foreground" aria-live="polite">
+              {query.isPending ? "…" : t("site.home.results", { count: formatNumber(total, locale) })}
+            </p>
           </div>
-          {query.hasNextPage && (
-            <div className="flex justify-center">
-              <Button variant="outline" onClick={() => query.fetchNextPage()} disabled={query.isFetchingNextPage} className="h-10 px-6">
-                {query.isFetchingNextPage && <Loader2 className="animate-spin" />}
-                {t("site.home.loadMore")}
+          <div className="flex items-center gap-2">
+            <SimpleSelect
+              className="w-full rounded-full bg-background data-[size=default]:h-10 sm:w-56"
+              value={regionId ?? null}
+              onChange={(v) => setParam("regionId", v)}
+              options={(lookups?.regions ?? []).map((r) => ({ value: r.id, label: t.text(r.name) }))}
+              clearLabel={t("site.home.allRegions")}
+              aria-label={t("site.post.region")}
+            />
+            {hasFilters && (
+              <Button variant="ghost" className="h-10 shrink-0 rounded-full" onClick={() => router.replace(pathname, { scroll: false })}>
+                <X /> {t("common.actions.clearFilters")}
               </Button>
+            )}
+          </div>
+        </div>
+
+        {query.isPending ? (
+          <ListingGridSkeleton />
+        ) : query.isError ? (
+          <ErrorState error={query.error} onRetry={() => query.refetch()} />
+        ) : items.length === 0 ? (
+          <EmptyState
+            icon={<SearchX />}
+            title={t("site.home.empty")}
+            description={t("site.home.emptyHint")}
+            action={<ButtonLink href="/listings/new">{t("site.nav.post")}</ButtonLink>}
+            className="rounded-2xl bg-card ring-1 ring-border/60"
+          />
+        ) : (
+          <>
+            <div className={cn("grid grid-cols-2 gap-3 transition-opacity sm:gap-5 md:grid-cols-3 lg:grid-cols-4", query.isFetching && !query.isFetchingNextPage && "opacity-70")}>
+              {items.map((l) => (
+                <ListingCard key={l.id} listing={l} />
+              ))}
             </div>
-          )}
-        </>
-      )}
+            {query.hasNextPage && (
+              <div className="flex justify-center pt-2">
+                <Button variant="outline" onClick={() => query.fetchNextPage()} disabled={query.isFetchingNextPage} className="h-11 rounded-full px-8">
+                  {query.isFetchingNextPage && <Loader2 className="animate-spin" />}
+                  {t("site.home.loadMore")}
+                </Button>
+              </div>
+            )}
+          </>
+        )}
+      </section>
     </div>
   );
 }
 
-function CategoryChip({ active, onClick, label, icon }: { active: boolean; onClick: () => void; label: string; icon?: React.ReactNode }) {
+function Hero() {
+  const t = useT();
+  const steps = [t("site.home.how.one"), t("site.home.how.two"), t("site.home.how.three")];
+  return (
+    <section className="overflow-hidden rounded-3xl bg-primary px-5 py-7 text-primary-foreground sm:px-10 sm:py-12">
+      <div className="max-w-2xl space-y-4">
+        <h1 className="text-2xl font-bold tracking-tight text-balance sm:text-4xl">{t("site.home.title")}</h1>
+        <p className="text-base text-pretty opacity-90 sm:text-lg">{t("site.home.subtitle")}</p>
+        <ButtonLink href="/listings/new" variant="secondary" className="h-11 rounded-full px-6 text-base">
+          <Plus /> {t("site.nav.post")}
+        </ButtonLink>
+      </div>
+      <ol className="mt-6 grid gap-2 text-sm sm:mt-8 sm:grid-cols-3 sm:gap-3">
+        {steps.map((text, i) => (
+          <li key={i} className="flex items-center gap-3 rounded-2xl bg-primary-foreground/10 px-3 py-2 sm:p-3">
+            <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary-foreground text-sm font-semibold text-primary sm:size-8">{i + 1}</span>
+            <span className="leading-snug">{text}</span>
+          </li>
+        ))}
+      </ol>
+    </section>
+  );
+}
+
+function CategoryTile({ active, onClick, label, icon }: { active: boolean; onClick: () => void; label: string; icon: ReactNode }) {
   return (
     <button
       type="button"
       onClick={onClick}
       aria-pressed={active}
       className={cn(
-        "inline-flex h-9 shrink-0 items-center gap-2 rounded-full border px-3.5 text-sm whitespace-nowrap transition-colors",
-        active ? "border-primary bg-primary text-primary-foreground" : "bg-background hover:bg-muted",
+        "flex w-24 shrink-0 flex-col items-center gap-2 rounded-2xl p-3 text-center text-xs font-medium transition-colors sm:w-auto",
+        active ? "bg-primary text-primary-foreground" : "bg-card ring-1 ring-border/60 hover:bg-accent",
       )}
     >
-      {icon}
-      {label}
+      <span className={cn("flex size-10 items-center justify-center rounded-full", active ? "bg-primary-foreground/15" : "bg-primary/10 text-primary")}>{icon}</span>
+      <span className="line-clamp-1 w-full">{label}</span>
     </button>
   );
 }

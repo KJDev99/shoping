@@ -136,8 +136,8 @@ export interface MockDb {
 
 const DAY = 86_400_000;
 
-export function mockImage(label: string, seed: number | string, kind: "item" | "avatar" = "item"): string {
-  const params = new URLSearchParams({ l: label, s: String(seed), k: kind });
+export function mockImage(label: string, seed: number | string, kind: "item" | "avatar" = "item", categoryId?: string): string {
+  const params = new URLSearchParams({ l: label, s: String(seed), k: kind, ...(categoryId ? { c: categoryId } : {}) });
   return `/api/mock-image?${params.toString()}`;
 }
 
@@ -398,7 +398,7 @@ function generate(): MockDb {
       condition: i === 0 ? "LIKE_NEW" : rnd.weighted(CONDITION_WEIGHTS),
       images: Array.from({ length: imageCount }, (_, k) => ({
         id: `img_${i}_${k}`,
-        url: mockImage(tpl.title, `${i}-${k}`),
+        url: mockImage(tpl.title, `${i}-${k}`, "item", tpl.subcategoryId || tpl.categoryId),
         sortOrder: k,
         isCover: k === 0,
       })),

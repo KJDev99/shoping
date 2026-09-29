@@ -3,7 +3,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeftRight, KeyRound, Loader2, Smartphone } from "lucide-react";
-import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
@@ -39,10 +38,10 @@ export function LoginPage() {
         <span className="mx-auto flex size-12 items-center justify-center rounded-2xl bg-primary text-primary-foreground">
           <ArrowLeftRight className="size-5" />
         </span>
-        <h1 className="text-2xl font-semibold tracking-tight">{t("site.login.title")}</h1>
+        <h1 className="text-2xl font-bold tracking-tight">{t("site.login.title")}</h1>
         <p className="text-sm text-muted-foreground">{needsLoginForPost ? t("site.login.required") : t("site.login.subtitle")}</p>
       </div>
-      <div className="rounded-2xl border bg-card p-5 sm:p-6">
+      <div className="rounded-3xl bg-card p-6 ring-1 ring-border/60 sm:p-8">
         {phone ? (
           <CodeStep
             phone={phone}
@@ -64,12 +63,6 @@ export function LoginPage() {
           />
         )}
       </div>
-      <p className="text-center text-xs text-muted-foreground">
-        {t("site.login.adminLink")}{" "}
-        <Link href="/admin/login" className="underline underline-offset-2 hover:text-foreground">
-          {t("site.nav.adminPanel")}
-        </Link>
-      </p>
     </div>
   );
 }
@@ -105,10 +98,10 @@ function PhoneStep({ onSent }: { onSent: (phone: string, devCode: string | null,
       <Field label={t("site.login.phone")} htmlFor="phone" error={form.formState.errors.phone}>
         <div className="relative">
           <Smartphone className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input id="phone" type="tel" inputMode="tel" autoComplete="tel" autoFocus placeholder="+998 90 123 45 67" className="h-10 pl-9 text-base" {...form.register("phone")} />
+          <Input id="phone" type="tel" inputMode="tel" autoComplete="tel" autoFocus placeholder="+998 90 123 45 67" className="h-12 pl-10 text-lg" {...form.register("phone")} />
         </div>
       </Field>
-      <Button type="submit" className="h-10 w-full" disabled={send.isPending}>
+      <Button type="submit" className="h-12 w-full rounded-full text-base" disabled={send.isPending}>
         {send.isPending && <Loader2 className="animate-spin" />}
         {t("site.login.sendCode")}
       </Button>
@@ -184,7 +177,7 @@ function CodeStep({
         </button>
       </p>
       {devCode && (
-        <p className="rounded-lg border border-dashed bg-muted/50 px-3 py-2 text-sm">
+        <p className="rounded-2xl bg-primary/10 px-4 py-3 text-sm">
           {t("site.login.devCode", { code: "" })}
           <button type="button" className="font-mono font-semibold tracking-widest" onClick={() => form.setValue("code", devCode, { shouldValidate: true })}>
             {devCode}
@@ -202,14 +195,14 @@ function CodeStep({
             maxLength={6}
             autoFocus
             readOnly={needsProfile}
-            className="h-10 pl-9 font-mono text-base tracking-[0.4em]"
+            className="h-12 pl-10 font-mono text-lg tracking-[0.4em]"
             {...form.register("code")}
           />
         </div>
       </Field>
 
       {needsProfile && (
-        <div className="space-y-4 rounded-xl border bg-muted/30 p-4">
+        <div className="space-y-4 rounded-2xl bg-muted/50 p-4">
           <div>
             <p className="font-medium">{t("site.login.profileTitle")}</p>
             <p className="text-xs text-muted-foreground">{t("site.login.profileHint")}</p>
@@ -240,7 +233,7 @@ function CodeStep({
         </div>
       )}
 
-      <Button type="submit" className="h-10 w-full" disabled={verify.isPending}>
+      <Button type="submit" className="h-12 w-full rounded-full text-base" disabled={verify.isPending}>
         {verify.isPending && <Loader2 className="animate-spin" />}
         {needsProfile ? t("site.login.finish") : t("site.login.verify")}
       </Button>

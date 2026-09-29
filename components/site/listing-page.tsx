@@ -1,12 +1,10 @@
 "use client";
 
-import { AlertTriangle, ArrowLeft, ArrowLeftRight, Clock, Eye, MapPin, ShieldCheck, XCircle } from "lucide-react";
+import { ArrowLeft, ArrowLeftRight, Clock, MapPin, ShieldCheck, XCircle } from "lucide-react";
 import Link from "next/link";
 import { ListingGallery } from "@/components/admin/listings/listing-gallery";
 import { Rating, UserAvatar } from "@/components/common/cells";
-import { InfoList } from "@/components/common/info-list";
 import { DetailSkeleton, ErrorState } from "@/components/common/states";
-import { Pill, StatusBadge } from "@/components/common/status-badge";
 import { useLookupNames } from "@/hooks/use-lookups";
 import { usePublicListing, useSimilarListings } from "@/hooks/use-site";
 import { formatDate, formatNumber } from "@/lib/format";
@@ -42,65 +40,38 @@ export function ListingPage({ id }: { id: string }) {
         </Banner>
       )}
 
-      <div className="grid gap-6 lg:grid-cols-[1.5fr_1fr]">
+      <div className="grid items-start gap-6 lg:grid-cols-[1.5fr_1fr]">
         <div className="min-w-0 space-y-6">
-          <div className="rounded-xl border bg-card p-3">
+          <div className="rounded-3xl bg-card p-3 ring-1 ring-border/60">
             <ListingGallery images={l.images} video={null} title={l.title} />
           </div>
-          <section className="space-y-2 rounded-xl border bg-card p-4">
-            <h2 className="font-semibold">{t("site.detail.description")}</h2>
-            <p className="text-sm leading-relaxed whitespace-pre-wrap">{l.description}</p>
-          </section>
-          <Attributes listing={l} />
+          <About listing={l} category={category} />
         </div>
 
-        <aside className="space-y-4">
-          <section className="space-y-3 rounded-xl border bg-card p-4">
-            <div className="flex flex-wrap items-center gap-2">
-              <StatusBadge kind="itemCondition" value={l.condition} dot={false} />
-              {isOwner && <StatusBadge kind="listingStatus" value={status} />}
-              <span className="font-mono text-xs text-muted-foreground">{l.code}</span>
-            </div>
-            <h1 className="text-xl font-semibold tracking-tight text-balance sm:text-2xl">{l.title}</h1>
-            <p className="text-sm text-muted-foreground">{category}</p>
-            <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-              <span className="inline-flex items-center gap-1">
-                <MapPin className="size-3.5" />
-                {[names.region(l.regionId), l.districtId ? names.district(l.districtId) : null].filter(Boolean).join(", ")}
-              </span>
-              <span className="inline-flex items-center gap-1">
-                <Eye className="size-3.5" />
-                {t("site.detail.views", { count: formatNumber(l.views, locale) })}
-              </span>
-              <span>{t("site.detail.posted", { date: formatDate(l.publishedAt ?? l.createdAt, locale) })}</span>
-            </div>
-            {l.location && (
-              <p className="text-sm">
-                <span className="text-muted-foreground">{t("site.detail.location")}: </span>
-                {l.location}
+        <aside className="space-y-4 lg:sticky lg:top-24">
+          <section className="space-y-4 rounded-3xl bg-card p-5 ring-1 ring-border/60">
+            <div className="space-y-2">
+              <h1 className="text-2xl font-bold tracking-tight text-balance">{l.title}</h1>
+              <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                <MapPin className="size-4 shrink-0" />
+                {[names.region(l.regionId), l.districtId ? names.district(l.districtId) : null].filter(Boolean).join(", ")} ·{" "}
+                {formatDate(l.publishedAt ?? l.createdAt, locale)}
               </p>
-            )}
-          </section>
-
-          <WantsCard preferences={l.exchangePreferences} />
-
-          <section className="space-y-3 rounded-xl border bg-card p-4">
-            <h2 className="text-sm font-semibold">{t("site.detail.owner")}</h2>
-            <div className="flex items-center gap-3">
-              <UserAvatar name={l.owner.fullName} src={l.owner.avatar} className="size-11" />
-              <div className="min-w-0">
-                <p className="truncate font-medium">{l.owner.fullName}</p>
-                <p className="text-xs text-muted-foreground">{t("site.detail.memberSince", { date: formatDate(l.owner.memberSince, locale) })}</p>
-              </div>
             </div>
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
-              {l.owner.rating !== null ? <Rating value={l.owner.rating} count={l.owner.reviewsCount} /> : <span className="text-muted-foreground">{t("site.detail.noRating")}</span>}
-              <span className="text-muted-foreground">{t("site.detail.exchanges", { count: l.owner.completedExchanges })}</span>
+            <WantsCard preferences={l.exchangePreferences} />
+            <div className="flex items-center gap-3 border-t pt-4">
+              <UserAvatar name={l.owner.fullName} src={l.owner.avatar} className="size-11" />
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-medium">{l.owner.fullName}</p>
+                <p className="text-xs text-muted-foreground">
+                  {l.owner.rating !== null ? <Rating value={l.owner.rating} count={l.owner.reviewsCount} /> : t("site.detail.noRating")}
+                </p>
+              </div>
             </div>
             {isOwner && <p className="text-xs text-muted-foreground">{t("site.detail.ownerHint")}</p>}
           </section>
 
-          <p className="flex items-start gap-2 rounded-xl border border-dashed p-3 text-xs text-muted-foreground">
+          <p className="flex items-start gap-2 px-1 text-xs text-muted-foreground">
             <ShieldCheck className="mt-0.5 size-4 shrink-0 text-success" />
             {t("site.detail.safety")}
           </p>
@@ -113,9 +84,9 @@ export function ListingPage({ id }: { id: string }) {
 }
 
 function Banner({ tone, icon, children }: { tone: "warning" | "danger"; icon: React.ReactNode; children: React.ReactNode }) {
-  const cls = tone === "warning" ? "border-warning/40 bg-warning/10" : "border-destructive/30 bg-destructive/10 text-destructive";
+  const cls = tone === "warning" ? "bg-warning/15" : "bg-destructive/10 text-destructive";
   return (
-    <div className={`flex items-start gap-2 rounded-xl border p-3 text-sm ${cls}`} role="status">
+    <div className={`flex items-start gap-2 rounded-2xl p-4 text-sm ${cls}`} role="status">
       <span className="mt-0.5">{icon}</span>
       <p>{children}</p>
     </div>
@@ -125,70 +96,33 @@ function Banner({ tone, icon, children }: { tone: "warning" | "danger"; icon: Re
 function WantsCard({ preferences: p }: { preferences: ExchangePreference }) {
   const t = useT();
   const names = useLookupNames();
+  const wanted = [...p.keywords, ...(p.subcategories.length ? p.subcategories : p.categories).map(names.category)];
   return (
-    <section className="space-y-3 rounded-xl border border-primary/30 bg-primary/5 p-4">
-      <h2 className="flex items-center gap-2 font-semibold">
-        <ArrowLeftRight className="size-4 text-primary" /> {t("site.detail.wantsTitle")}
+    <div className="space-y-3 rounded-2xl bg-primary/10 p-4">
+      <h2 className="flex items-center gap-2 text-sm font-semibold text-primary">
+        <ArrowLeftRight className="size-4" /> {t("site.detail.wantsTitle")}
       </h2>
-      {p.openToOffers && <p className="text-sm">{t("site.detail.openToOffersText")}</p>}
-      {(p.keywords.length > 0 || p.subcategories.length > 0 || p.categories.length > 0) && (
-        <div className="space-y-2">
-          {p.keywords.length > 0 && (
-            <div className="space-y-1">
-              <p className="text-xs text-muted-foreground">{t("site.detail.keywords")}</p>
-              <div className="flex flex-wrap gap-1.5">
-                {p.keywords.map((k) => (
-                  <Pill key={k} tone="primary">
-                    {k}
-                  </Pill>
-                ))}
-              </div>
-            </div>
-          )}
-          {(p.subcategories.length > 0 || p.categories.length > 0) && (
-            <div className="space-y-1">
-              <p className="text-xs text-muted-foreground">{t("site.detail.wantedCategories")}</p>
-              <div className="flex flex-wrap gap-1.5">
-                {(p.subcategories.length ? p.subcategories : p.categories).map((id) => (
-                  <Pill key={id}>{names.category(id)}</Pill>
-                ))}
-              </div>
-            </div>
-          )}
+      {wanted.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {wanted.map((w) => (
+            <span key={w} className="rounded-full bg-background px-3 py-1 text-sm font-medium">
+              {w}
+            </span>
+          ))}
         </div>
       )}
-      {p.note && (
-        <p className="text-sm">
-          <span className="text-muted-foreground">{t("site.detail.note")}: </span>
-          {p.note}
-        </p>
-      )}
-      {p.conditions.length > 0 && (
-        <p className="text-sm">
-          <span className="text-muted-foreground">{t("site.detail.conditions")}: </span>
-          {p.conditions.map((c) => t(`enums.itemCondition.${c}`)).join(", ")}
-        </p>
-      )}
-      {p.regionIds.length > 0 && (
-        <p className="text-sm">
-          <span className="text-muted-foreground">{t("site.detail.regions")}: </span>
-          {p.regionIds.map(names.region).join(", ")}
-        </p>
-      )}
+      {p.openToOffers && <p className="text-sm">{t("site.detail.openToOffersText")}</p>}
+      {p.note && <p className="text-sm text-muted-foreground">“{p.note}”</p>}
       {p.cashDifference && (
-        <p className="flex items-start gap-1.5 rounded-lg border border-dashed p-2 text-xs">
-          <AlertTriangle className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" />
-          <span>
-            <span className="text-muted-foreground">{t("site.detail.cashNote")}: </span>
-            {p.cashDifference.note}
-          </span>
+        <p className="text-xs text-muted-foreground">
+          {t("site.detail.cashNote")}: {p.cashDifference.note}
         </p>
       )}
-    </section>
+    </div>
   );
 }
 
-function Attributes({ listing }: { listing: PublicListing }) {
+function About({ listing, category }: { listing: PublicListing; category: string }) {
   const t = useT();
   const [locale] = useLocale();
   const { attributes } = useLookupNames();
@@ -196,7 +130,6 @@ function Attributes({ listing }: { listing: PublicListing }) {
     .map(([id, value]) => ({ def: attributes.get(id), value }))
     .filter((x): x is { def: NonNullable<typeof x.def>; value: ListingAttributeValue } => !!x.def)
     .sort((a, b) => a.def.sortOrder - b.def.sortOrder);
-  if (!items.length) return null;
   const show = (def: (typeof items)[number]["def"], v: ListingAttributeValue) => {
     const opt = (val: string) => t.text(def.options.find((o) => o.value === val)?.label) || val;
     if (typeof v === "boolean") return v ? t("common.misc.yes") : t("common.misc.no");
@@ -204,10 +137,26 @@ function Attributes({ listing }: { listing: PublicListing }) {
     if (Array.isArray(v)) return v.map(opt).join(", ");
     return def.type === "SELECT" ? opt(v) : v;
   };
+  const rows = [
+    { label: t("site.post.condition"), value: t(`enums.itemCondition.${listing.condition}`) },
+    { label: t("site.post.category"), value: category },
+    ...items.map(({ def, value }) => ({ label: t.text(def.name), value: show(def, value) })),
+    ...(listing.location ? [{ label: t("site.detail.location"), value: listing.location }] : []),
+  ];
   return (
-    <section className="space-y-3 rounded-xl border bg-card p-4">
-      <h2 className="font-semibold">{t("site.detail.attributes")}</h2>
-      <InfoList columns={2} items={items.map(({ def, value }) => ({ label: t.text(def.name), value: show(def, value) }))} />
+    <section className="space-y-5 rounded-3xl bg-card p-5 ring-1 ring-border/60 sm:p-6">
+      <div className="space-y-2">
+        <h2 className="text-lg font-semibold">{t("site.detail.description")}</h2>
+        <p className="leading-relaxed whitespace-pre-wrap">{listing.description}</p>
+      </div>
+      <dl className="grid gap-x-8 sm:grid-cols-2">
+        {rows.map((r) => (
+          <div key={r.label} className="flex justify-between gap-4 border-b py-2.5 text-sm">
+            <dt className="text-muted-foreground">{r.label}</dt>
+            <dd className="text-right font-medium">{r.value}</dd>
+          </div>
+        ))}
+      </dl>
     </section>
   );
 }
@@ -218,8 +167,8 @@ function Similar({ id }: { id: string }) {
   if (!data?.length) return null;
   return (
     <section className="space-y-3">
-      <h2 className="text-lg font-semibold">{t("site.detail.similar")}</h2>
-      <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-4">
+      <h2 className="text-xl font-semibold tracking-tight">{t("site.detail.similar")}</h2>
+      <div className="grid grid-cols-2 gap-3 sm:gap-5 md:grid-cols-3 lg:grid-cols-4">
         {data.slice(0, 4).map((l) => (
           <ListingCard key={l.id} listing={l} />
         ))}
