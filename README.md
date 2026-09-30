@@ -4,7 +4,24 @@ Admin panel for **Barter.uz**, a barter marketplace in Uzbekistan where users tr
 The platform has no selling, prices, cart, checkout, payments or orders. An optional "cash difference" can be recorded as a
 note during negotiation. The setting is off by default, and no payment is ever processed.
 
-## Quick start
+## Quick start (with the Django backend)
+
+```bash
+# 1) backend  (folder: ../barter shoping/backend)
+.venv\Scriptsctivate
+python manage.py runserver 8000
+python manage.py run_bot          # Telegram bot (second terminal)
+
+# 2) frontend (this folder) — .env.local:  BACKEND_URL=http://localhost:8000
+npm run dev
+```
+
+With `BACKEND_URL` set, `/api/admin/*`, `/api/app/*` and `/media/*` are proxied to Django through this app's own origin
+(`next.config.ts`, `beforeFiles` rewrites), so the session cookies stay first-party. Users sign in with the Telegram bot:
+"Kirish" → open the bot → Start → share phone → type the 6-digit code. Without `BACKEND_URL` the built-in mock backend is used
+(its Telegram login accepts any 6-digit code).
+
+## Quick start (mock only)
 
 ```bash
 npm install
@@ -73,6 +90,7 @@ permission server-side**. Frontend permission checks only hide or disable UI.
 |---|---|---|
 | `NEXT_PUBLIC_API_URL` | `/api/admin` | API base URL |
 | `NEXT_PUBLIC_SITE_API_URL` | `/api/app` | Public marketplace API base URL |
+| `BACKEND_URL` | unset | Django backend origin (e.g. `http://localhost:8000`). Set → real backend via rewrites; unset → mock |
 | `MOCK_API_LATENCY_MS` | `250` | Simulated latency of the mock backend |
 | `MOCK_EXPOSE_OTP` | unset | Show SMS codes in a production build of the mock (always shown in dev). Never enable with real users. |
 | `MOCK_STRICT_OTP` | unset | `true` = the mock checks the generated SMS code instead of accepting any 6 digits. |

@@ -86,6 +86,22 @@ function createUser(db: MockDb, phone: string, profile: { firstName: string; las
   return user;
 }
 
+const MOCK_BOT = "barteruzbot";
+const telegramLogins = new Map<string, { expiresAt: number; userId: string | null }>();
+
+/** Creates a marketplace session and sets the session + CSRF cookies. */
+function signIn(db: MockDb, user: User) {
+  user.lastActiveAt = new Date().toISOString();
+  const sessionToken = token();
+  const csrf = token();
+  db.userSessions.set(sessionToken, { token: sessionToken, userId: user.id, csrfToken: csrf, expiresAt: Date.now() + SESSION_TTL_MS });
+  const res = NextResponse.json({ success: true, message: "Signed in", data: { needsProfile: false, user: toSiteUser(user) } });
+  const secure = process.env.NODE_ENV === "production";
+  res.cookies.set(USER_SESSION_COOKIE, sessionToken, { httpOnly: true, sameSite: "lax", secure, path: "/", maxAge: SESSION_TTL_MS / 1000 });
+  res.cookies.set(USER_CSRF_COOKIE, csrf, { httpOnly: false, sameSite: "lax", secure, path: "/", maxAge: SESSION_TTL_MS / 1000 });
+  return res;
+}
+
 export const authRoutes = [
   /** Sends a one-time SMS code. The mock returns it outside production so the flow can be tried locally. */
   appRoute(
@@ -146,16 +162,58 @@ export const authRoutes = [
         user = createUser(ctx.db, input.phone, input.profile);
       }
       ctx.db.otps.delete(key);
-      user.lastActiveAt = new Date().toISOString();
+      return signIn(ctx.db, user);
+    },
+    { public: true },
+  ),
 
-      const sessionToken = token();
-      const csrf = token();
-      ctx.db.userSessions.set(sessionToken, { token: sessionToken, userId: user.id, csrfToken: csrf, expiresAt: Date.now() + SESSION_TTL_MS });
-      const res = NextResponse.json({ success: true, message: "Signed in", data: { needsProfile: false, user: toSiteUser(user) } });
-      const secure = process.env.NODE_ENV === "production";
-      res.cookies.set(USER_SESSION_COOKIE, sessionToken, { httpOnly: true, sameSite: "lax", secure, path: "/", maxAge: SESSION_TTL_MS / 1000 });
-      res.cookies.set(USER_CSRF_COOKIE, csrf, { httpOnly: false, sameSite: "lax", secure, path: "/", maxAge: SESSION_TTL_MS / 1000 });
-      return res;
+  // ---- Telegram sign-in (mock). The real backend runs the bot (docs/BACKEND_SPEC.md §5);
+  // here there is no bot, so the status is CODE_SENT right away and any 6-digit code is accepted.
+  appRoute(
+    "POST",
+    "/auth/telegram/start",
+    () => {
+      const loginToken = token().slice(0, 43);
+      telegramLogins.set(loginToken, { expiresAt: Date.now() + 10 * 60_000, userId: null });
+      return ok({
+        loginToken,
+        botUsername: MOCK_BOT,
+        botUrl: `https://t.me/${MOCK_BOT}?start=${loginToken}`,
+        expiresAt: new Date(Date.now() + 10 * 60_000).toISOString(),
+        pollAfterSec: 3,
+      });
+    },
+    { public: true },
+  ),
+
+  appRoute(
+    "GET",
+    "/auth/telegram/status",
+    (ctx) => {
+      const req = telegramLogins.get(ctx.url.searchParams.get("loginToken") ?? "");
+      const status = !req || req.expiresAt < Date.now() ? "EXPIRED" : "CODE_SENT";
+      return ok({ status, phoneMasked: status === "CODE_SENT" ? "+998 ** *** ** **" : null });
+    },
+    { public: true },
+  ),
+
+  appRoute(
+    "POST",
+    "/auth/telegram/verify",
+    (ctx) => {
+      const body = (ctx.body ?? {}) as { loginToken?: string; code?: string; profile?: { firstName?: string; lastName?: string; regionId?: string } };
+      const req = telegramLogins.get(body.loginToken ?? "");
+      if (!req || req.expiresAt < Date.now()) throw unprocessable({ code: ["site.validation.codeExpired"] });
+      if (!/^\d{6}$/.test(body.code ?? "")) throw unprocessable({ code: ["site.validation.code"] });
+      if (!body.profile) return ok({ needsProfile: true, user: null, suggestedProfile: { firstName: "", lastName: "" } });
+      const { firstName = "", lastName = "", regionId = "" } = body.profile;
+      if (firstName.trim().length < 2) throw unprocessable({ "profile.firstName": ["validation.min2"] });
+      if (!ctx.db.regions.some((r) => r.id === regionId && r.enabled)) throw unprocessable({ "profile.regionId": ["validation.invalid"] });
+      // A mock "Telegram number" for the new account.
+      const phone = `+99899${String(Math.floor(Math.random() * 1e7)).padStart(7, "0")}`;
+      const user = createUser(ctx.db, phone, { firstName: firstName.trim(), lastName: lastName.trim(), regionId });
+      telegramLogins.delete(body.loginToken!);
+      return signIn(ctx.db, user);
     },
     { public: true },
   ),

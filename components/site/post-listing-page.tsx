@@ -2,7 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Check, ChevronDown, Film, ImagePlus, KeyRound, Loader2, Plus, Star, X } from "lucide-react";
+import { Check, ChevronDown, Film, ImagePlus, Loader2, Plus, Star, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
@@ -18,16 +18,16 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { applyFieldErrors, useApiErrorMessage } from "@/hooks/use-api-error";
 import { useLookups } from "@/hooks/use-lookups";
-import { siteKeys, useSiteConfig, useSiteUser } from "@/hooks/use-site";
+import { useSiteConfig, useSiteUser } from "@/hooks/use-site";
 import { isApiError } from "@/lib/api/client";
 import { useT } from "@/lib/i18n/provider";
 import { cn } from "@/lib/utils";
-import { phoneSchema } from "@/schemas/auth.schema";
 import { attributesFor, listingUpdateSchema, type ExchangePreferenceInput, type ListingUpdateInput } from "@/schemas/listing.schema";
 import { UPLOAD_RULES, VIDEO_RULES } from "@/schemas/site.schema";
 import { siteService } from "@/services/site.service";
 import { ITEM_CONDITIONS, type SiteUser } from "@/types";
 import { HashtagInput } from "./hashtag-input";
+import { TelegramLogin } from "./telegram-login";
 
 /** A picked file. Guests keep files locally; they are uploaded right after the phone is confirmed. */
 interface Photo {
@@ -108,13 +108,8 @@ function PostListingForm({ user }: { user: SiteUser | null }) {
   const [showMore, setShowMore] = useState(false);
   const [busy, setBusy] = useState(false);
 
-  // Guest contact + SMS confirmation.
-  const [name, setName] = useState("");
-  const [phone, setPhone] = useState("+998 ");
-  const [contactErrors, setContactErrors] = useState<{ name?: string; phone?: string }>({});
-  const [sms, setSms] = useState<{ values: ListingUpdateInput; anyCode: boolean } | null>(null);
-  const [code, setCode] = useState("");
-  const [codeError, setCodeError] = useState<string | null>(null);
+  // Guests confirm their phone through the Telegram bot right before publishing.
+  const [pendingValues, setPendingValues] = useState<ListingUpdateInput | null>(null);
 
   const form = useForm<ListingUpdateInput>({
     resolver: zodResolver(listingUpdateSchema),
@@ -251,7 +246,8 @@ function PostListingForm({ user }: { user: SiteUser | null }) {
 
   const showServerError = (e: unknown) => {
     if (isApiError(e) && e.fieldErrors?.imageIds) setPhotoError(t.dynamic(e.fieldErrors.imageIds[0]));
-    if (isApiError(e) && e.fieldErrors?.video) setVideoError(t.dynamic(e.fieldErrors.video[0]));
+    const videoField = isApiError(e) ? Object.entries(e.fieldErrors ?? {}).find(([k]) => k === "video" || k.startsWith("video."))?.[1]?.[0] : undefined;
+    if (videoField) setVideoError(t.dynamic(videoField));
     if (applyFieldErrors(e, form.setError)) {
       // Errors on hidden optional details: open that section so the message is visible.
       if (isApiError(e) && Object.keys(e.fieldErrors ?? {}).some((k) => k.startsWith("attributes."))) setShowMore(true);
@@ -277,7 +273,7 @@ function PostListingForm({ user }: { user: SiteUser | null }) {
         videoId = (await siteService.upload(video.file)).id;
         setVideo((v) => (v ? { ...v, id: videoId, uploading: false } : v));
       }
-      const listing = await create.mutateAsync({ ...values, imageIds, video: video && videoId ? { id: videoId, durationSec: video.durationSec } : null });
+      const listing = await create.mutateAsync({ ...values, imageIds, video: video && videoId ? { id: videoId, durationSec: Math.round(video.durationSec) } : null });
       await qc.invalidateQueries({ queryKey: ["site"] });
       toast.success(listing.status === "ACTIVE" ? t("site.post.published") : t("site.post.sentToModeration"));
       router.push(`/listings/${listing.id}`);
@@ -287,65 +283,22 @@ function PostListingForm({ user }: { user: SiteUser | null }) {
     }
   };
 
-  const validateContact = () => {
-    const next: typeof contactErrors = {};
-    if (name.trim().length < 2) next.name = t("validation.min2");
-    if (!phoneSchema.safeParse(phone).success) next.phone = t("validation.phone");
-    setContactErrors(next);
-    return !next.name && !next.phone;
-  };
-
   const onSubmit = form.handleSubmit(
-    async (values) => {
-      const contactOk = !isGuest || validateContact();
-      if (!photos.length) setPhotoError(t("site.validation.imagesRequired"));
-      if (!photos.length || !contactOk) {
+    (values) => {
+      if (!photos.length) {
+        setPhotoError(t("site.validation.imagesRequired"));
         setFormError(t("common.toast.validation"));
         return;
       }
-      if (!isGuest) return publish(values);
-      // Guest: send an SMS code to the given number, then publish after it is confirmed.
-      setBusy(true);
-      try {
-        const res = await siteService.requestCode({ phone });
-        setCode("");
-        setCodeError(null);
-        setSms({ values, anyCode: res.acceptsAnyCode });
-      } catch (e) {
-        if (isApiError(e) && e.fieldErrors?.phone) setContactErrors({ phone: t.dynamic(e.fieldErrors.phone[0]) });
-        else showServerError(e);
-      } finally {
-        setBusy(false);
-      }
+      setFormError(null);
+      if (isGuest) setPendingValues(values);
+      else void publish(values);
     },
     () => {
-      if (isGuest) validateContact();
       if (!photos.length) setPhotoError(t("site.validation.imagesRequired"));
       setFormError(t("common.toast.validation"));
     },
   );
-
-  const confirmSms = async () => {
-    if (!sms) return;
-    if (!/^\d{6}$/.test(code)) return setCodeError(t("site.validation.code"));
-    setBusy(true);
-    try {
-      const [firstName, ...rest] = name.trim().split(/\s+/);
-      const res = await siteService.verify({ phone, code, profile: { firstName, lastName: rest.join(" "), regionId: sms.values.regionId } });
-      qc.setQueryData(siteKeys.me, res.user);
-      const values = sms.values;
-      setSms(null);
-      await publish(values);
-    } catch (e) {
-      setBusy(false);
-      const msg = isApiError(e) ? e.fieldErrors?.code?.[0] : undefined;
-      if (msg) setCodeError(t.dynamic(msg));
-      else {
-        setSms(null);
-        showServerError(e);
-      }
-    }
-  };
 
   const wantsError = errors.exchangePreferences
     ? errors.exchangePreferences.openToOffers?.message
@@ -690,36 +643,6 @@ function PostListingForm({ user }: { user: SiteUser | null }) {
         </div>
       </Step>
 
-      {isGuest && (
-        <Step n={5} title={t("site.post.stepContact")} hint={t("site.post.contactHint")}>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field label={t("site.post.yourName")} htmlFor="guest-name" error={contactErrors.name ? { type: "custom", message: contactErrors.name } : undefined}>
-              <Input
-                id="guest-name"
-                autoComplete="name"
-                maxLength={50}
-                placeholder={t("site.post.yourNamePlaceholder")}
-                value={name}
-                aria-invalid={!!contactErrors.name}
-                onChange={(e) => setName(e.target.value)}
-              />
-            </Field>
-            <Field label={t("site.post.phone")} htmlFor="guest-phone" error={contactErrors.phone ? { type: "custom", message: contactErrors.phone } : undefined}>
-              <Input
-                id="guest-phone"
-                type="tel"
-                inputMode="tel"
-                autoComplete="tel"
-                placeholder="+998 90 123 45 67"
-                value={phone}
-                aria-invalid={!!contactErrors.phone}
-                onChange={(e) => setPhone(e.target.value)}
-              />
-            </Field>
-          </div>
-        </Step>
-      )}
-
       <div className="space-y-3 pt-1">
         <Button
           type="submit"
@@ -729,54 +652,26 @@ function PostListingForm({ user }: { user: SiteUser | null }) {
           {(busy || uploading) && <Loader2 className="animate-spin" />}
           {busy ? t("site.post.submitting") : t("site.post.submit")}
         </Button>
+        {isGuest && <p className="text-center text-sm text-muted-foreground">{t("site.tg.confirmText")}</p>}
         {config?.requireModeration !== false && <p className="text-center text-sm text-muted-foreground">{t("site.post.moderationNote")}</p>}
       </div>
 
-      <Dialog open={!!sms} onOpenChange={(open) => !open && !busy && setSms(null)}>
-        <DialogContent className="sm:max-w-sm">
+      <Dialog open={!!pendingValues} onOpenChange={(open) => !open && setPendingValues(null)}>
+        <DialogContent className="max-h-[92svh] overflow-y-auto sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>{t("site.post.smsTitle")}</DialogTitle>
-            <DialogDescription>{t("site.post.smsText", { phone })}</DialogDescription>
+            <DialogTitle>{t("site.tg.confirmTitle")}</DialogTitle>
+            <DialogDescription>{t("site.tg.confirmText")}</DialogDescription>
           </DialogHeader>
-          {sms?.anyCode && (
-            <p className="rounded-2xl bg-primary/10 px-4 py-3 text-sm">
-              {t("site.login.anyCode")}{" "}
-              <button type="button" className="font-mono font-semibold tracking-widest underline-offset-2 hover:underline" onClick={() => setCode("123456")}>
-                123456
-              </button>
-            </p>
+          {pendingValues && (
+            <TelegramLogin
+              profileDefaults={{ regionId: pendingValues.regionId }}
+              onSuccess={() => {
+                const values = pendingValues;
+                setPendingValues(null);
+                void publish(values);
+              }}
+            />
           )}
-          <div className="space-y-1.5">
-            <div className="relative">
-              <KeyRound className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                autoFocus
-                inputMode="numeric"
-                autoComplete="one-time-code"
-                maxLength={6}
-                value={code}
-                onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    void confirmSms();
-                  }
-                }}
-                aria-label={t("site.login.code")}
-                aria-invalid={!!codeError}
-                className="h-12 pl-10 font-mono text-lg tracking-[0.4em]"
-              />
-            </div>
-            {codeError && (
-              <p className="text-sm text-destructive" role="alert">
-                {codeError}
-              </p>
-            )}
-          </div>
-          <Button type="button" className="h-11 w-full rounded-full" disabled={busy} onClick={() => void confirmSms()}>
-            {busy && <Loader2 className="animate-spin" />}
-            {t("site.post.smsConfirm")}
-          </Button>
         </DialogContent>
       </Dialog>
     </form>

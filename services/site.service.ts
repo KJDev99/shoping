@@ -1,14 +1,36 @@
 import { siteApi } from "@/lib/api/client";
-import type { CreateListingInput, RequestCodeInput, SendOfferInput, VerifyCodeInput } from "@/schemas/site.schema";
+import type { CreateListingInput, SendOfferInput } from "@/schemas/site.schema";
 import type { BarterRequestStatus, ListingStatus, ListParams, MyListing, PublicListing, PublicListingCard, SiteConfig, SiteOffer, SiteUser } from "@/types";
 import type { Lookups } from "./common.service";
+
+export type TelegramLoginStatus = "PENDING" | "CONTACT_REQUESTED" | "CODE_SENT" | "USED" | "EXPIRED";
+
+export interface TelegramStart {
+  loginToken: string;
+  botUsername: string;
+  botUrl: string;
+  expiresAt: string;
+  pollAfterSec: number;
+}
+
+export interface TelegramVerifyInput {
+  loginToken: string;
+  code: string;
+  profile?: { firstName: string; lastName?: string; regionId: string };
+}
+
+export interface TelegramVerifyResult {
+  needsProfile: boolean;
+  user: SiteUser | null;
+  suggestedProfile?: { firstName: string; lastName: string };
+}
 
 /** Public marketplace API (end users). Separate from the admin API and session. */
 export const siteService = {
   me: () => siteApi.get<SiteUser | null>("/auth/me"),
-  requestCode: (input: RequestCodeInput) =>
-    siteApi.post<{ isNewUser: boolean; resendAfterSec: number; devCode: string | null; acceptsAnyCode: boolean }>("/auth/request-code", input),
-  verify: (input: VerifyCodeInput) => siteApi.post<{ needsProfile: boolean; user: SiteUser | null }>("/auth/verify", input),
+  telegramStart: () => siteApi.post<TelegramStart>("/auth/telegram/start"),
+  telegramStatus: (loginToken: string) => siteApi.get<{ status: TelegramLoginStatus; phoneMasked: string | null }>("/auth/telegram/status", { loginToken }),
+  telegramVerify: (input: TelegramVerifyInput) => siteApi.post<TelegramVerifyResult>("/auth/telegram/verify", input),
   logout: () => siteApi.post<null>("/auth/logout"),
 
   config: () => siteApi.get<SiteConfig>("/config"),
